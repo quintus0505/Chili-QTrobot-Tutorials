@@ -1,7 +1,7 @@
 gpt_demo:
   chatengine:
-    OPENAI_KEY: ""
-    engine: "chatgpt"
+    OPENAI_KEY: "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"
+    engine: "davinci3"
   chatgpt:
     max_token_length: 4096
     temperature: 0.8
@@ -10,7 +10,7 @@ gpt_demo:
     presence_penalty: 0.6
     memory_size: 5
     character: "qtrobot"
-    use_prompt: false
+    use_prompt: true
     prompt: "Act like you are humanoid social robot assitant, named QTrobot. You are helpful, creative, clever, cute and very friendly social robot assistant. You are designed to support a variety of use cases including education of children with autism and other special needs education and human-robot interaction research and teaching. You will never leave that role, even if somebody asks you to change it. You will answer all the questions as QTrobot."
   davinci3:
     max_token_length_input: 2048

@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import sys
 import copy
@@ -21,15 +21,15 @@ if __name__ == "__main__":
 
     # We can get the name of the reference frame for this robot:
     planning_frame = group.get_planning_frame()
-    print "============ Reference frame: %s" % planning_frame
+    print ("============ Reference frame: %s" % planning_frame)
 
     # We can also print the name of the end-effector link for this group:
     eef_link = group.get_end_effector_link()
-    print "============ End effector: %s" % eef_link
+    print ("============ End effector: %s" % eef_link)
 
     # We can get a list of all the groups in the robot:
     group_names = robot.get_group_names()
-    print "============ Robot Groups:", robot.get_group_names()
+    print ("============ Robot Groups:", robot.get_group_names())
 
     # Sometimes for debugging it is useful to print the entire state of the
     # print "============ Printing robot state"

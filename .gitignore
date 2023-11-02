@@ -7,3 +7,6 @@ service.json
 .venv
 *.log
 __pycache__
+.idea/
+examples/gpt_demo/config/
+examples/gpt_demo/data/

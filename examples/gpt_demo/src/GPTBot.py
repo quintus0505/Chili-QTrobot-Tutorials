@@ -10,10 +10,13 @@ from std_msgs.msg import String
 import nltk
 from nltk.tokenize import sent_tokenize, word_tokenize
 from nltk.sentiment import SentimentIntensityAnalyzer
-
+import logging
+from utils.tools import load_csv_file, save_csv_file
 from qt_robot_interface.srv import *
 from qt_gspeech_app.srv import *
 # from qt_riva_asr_app.srv import *
+
+
 
 class Synchronizer():
     """
@@ -65,16 +68,25 @@ class QTChatBot():
 
     def __init__(self):
         nltk.download('vader_lexicon')
-        self.model_engine = rospy.get_param("/gpt_demo/chatengine/engine", "chatgpt")
+        self.model_engine = rospy.get_param("/gpt_demo/chatengine/engine", 'chatgpt')
 
         if self.model_engine == 'chatgpt':
             self.aimodel = aimodel.ChatGPT()
+            self.google_speech_to_text_file = "chatgpt_google_speech_data.csv"
+            self.openai_data_file = "chatgpt_openai_data.csv"
         elif self.model_engine == 'davinci3':
-            self.aimodel = aimodel.Davinci3() 
+            self.aimodel = aimodel.Davinci3()
+            self.google_speech_to_text_file = "davinci3_google_speech_data.csv"
+            self.openai_data_file = "davinci3_openai_data.csv"
         elif self.model_engine == 'fastchat':
             self.aimodel = aimodel.FastChat()
+            self.google_speech_to_text_file = "fastchat_google_speech_data.csv"
+            self.openai_data_file = "fastchat_openai_data.csv"
         else:
             raise ValueError(f'{self.model_engine} not supported!')
+        print("chartgpt setted")
+        
+        self.google_speech_data = load_csv_file(self.google_speech_to_text_file)
 
         self.sia = SentimentIntensityAnalyzer()
         self.finish = False
@@ -85,13 +97,20 @@ class QTChatBot():
         self.emotion_pub = rospy.Publisher('/qt_robot/emotion/show', String, queue_size=2)
         self.gesture_pub = rospy.Publisher('/qt_robot/gesture/play', String, queue_size=2)
         self.talkText = rospy.ServiceProxy('/qt_robot/behavior/talkText', behavior_talk_text)
-        self.recognizeQuestion = rospy.ServiceProxy('/qt_robot/gspeech/recognize', speech_recognize) 
-        # self.recognizeQuestion = rospy.ServiceProxy('/qt_robot/speech/recognize', speech_recognize) 
+        # self.recognizeQuestion = rospy.ServiceProxy('/qt_robot/gspeech/recognize', speech_recognize) 
+        self.recognizeQuestion = rospy.ServiceProxy('/qt_robot/speech/recognize', speech_recognize) 
 
         # block/wait for ros service
-        rospy.wait_for_service('/qt_robot/behavior/talkText')     
-        rospy.wait_for_service('/qt_robot/gspeech/recognize')
-        # rospy.wait_for_service('/qt_robot/speech/recognize')
+        print("block/wait for ros service")
+        rospy.wait_for_service('/qt_robot/behavior/talkText')   
+        print("/qt_robot/behavior/talkText have")  
+        # rospy.wait_for_service('/qt_robot/gspeech/recognize')
+        # print("/qt_robot/gspeech/recognize have")  
+        rospy.wait_for_service('/qt_robot/speech/recognize')
+        print("/qt_robot/speech/recognize have")  
+
+        # Set up logging
+        logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
         
     def talk(self, text):
         print('QT talking:', text)
@@ -199,15 +218,30 @@ class QTChatBot():
     def intro(self):
         response =  self.aimodel.generate("Who are you?")
         print("Intro: ",response)
-        self.talk(response) 
+        self.talk(response)
+
+    def ask_name(self):
+        response = self.aimodel.generate("Ask the name of the person you are talking to by 'What is your name?', you should not give out any additional words(like sure, absolutely e.g.).")
+        print("Ask name: ",response)
+        self.talk(response)
 
 
     def start(self):
-        self.intro()
+        # self.intro()
         while not rospy.is_shutdown() and not self.finish:            
             print('listenting...') 
-            try:    
-                recognize_result = self.recognizeQuestion(language=self.defaultlanguage, options='', timeout=0)                        
+            
+            try:
+                start_time = time.time()   
+                recognize_result = self.recognizeQuestion(language=self.defaultlanguage, options='', timeout=0)
+                end_time = time.time()
+                api_time = end_time - start_time
+                if recognize_result:
+                    print("recognize_result: ", recognize_result)
+                    print("api_time: ", api_time, "input token num: ", len(recognize_result.transcript))
+                    self.google_speech_data.append((api_time, len(recognize_result.transcript)))
+                else:
+                    print("recognize_result is None")                        
                 if not recognize_result or not recognize_result.transcript:
                     self.bored()
                     continue
@@ -232,11 +266,13 @@ class QTChatBot():
                 response = results[1]
             else:
                 response = results[0]   
-
+            print("api_time: ", api_time, "input token num: ", len(words))
             if not response:
                 response = self.error_feedback
 
             self.speak(self.refine_sentence(response))
+            save_csv_file(self.google_speech_to_text_file, self.google_speech_data)
+            save_csv_file(self.openai_data_file, self.aimodel.openai_data)
             
         print("qt_gpt_demo_node Stopping!")
         self.finish = False
@@ -245,14 +281,11 @@ class QTChatBot():
 if __name__ == "__main__":
    
     rospy.init_node('qt_gpt_demo_node')
-    rospy.loginfo("qt_gpt_demo_node started!")                               
+    rospy.loginfo("qt_gpt_demo_node started!")          
+    print("======================================================")                     
     speechBot = QTChatBot()
+    print("speechBot done")
+    speechBot.intro()
     speechBot.start()
     rospy.spin()
     rospy.loginfo("qt_gpt_demo_node is ready!")    
-
-    
-    
-    
-    
-    

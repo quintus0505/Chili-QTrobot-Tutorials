@@ -66,10 +66,10 @@ class Synchronizer():
 class QTChatBot():
     """QTrobot talks with you via GPT3 and Google Speech"""
 
-    def __init__(self):
+    def __init__(self, log_data=False):
         nltk.download('vader_lexicon')
         self.model_engine = rospy.get_param("/gpt_demo/chatengine/engine", 'chatgpt')
-
+        self.log_data = log_data
         if self.model_engine == 'chatgpt':
             self.aimodel = aimodel.ChatGPT()
             self.google_speech_to_text_file = "chatgpt_google_speech_data.csv"
@@ -239,7 +239,8 @@ class QTChatBot():
                 if recognize_result:
                     print("recognize_result: ", recognize_result)
                     print("api_time: ", api_time, "input token num: ", len(recognize_result.transcript))
-                    self.google_speech_data.append((api_time, len(recognize_result.transcript)))
+                    if self.log_data:
+                        self.google_speech_data.append((api_time, len(recognize_result.transcript)))
                 else:
                     print("recognize_result is None")                        
                 if not recognize_result or not recognize_result.transcript:
@@ -254,7 +255,7 @@ class QTChatBot():
             words = word_tokenize(prompt.lower())
             if 'stop' in words:
                 self.gesture_pub.publish(random.choice(["QT/bye"]))
-                self.talk("Okay bye!")
+                # self.talk("Okay bye!")
                 self.finish = True
             response = None
             bs = Synchronizer()
@@ -271,8 +272,9 @@ class QTChatBot():
                 response = self.error_feedback
 
             self.speak(self.refine_sentence(response))
-            save_csv_file(self.google_speech_to_text_file, self.google_speech_data)
-            save_csv_file(self.openai_data_file, self.aimodel.openai_data)
+            if self.log_data:
+                save_csv_file(self.google_speech_to_text_file, self.google_speech_data)
+                save_csv_file(self.openai_data_file, self.aimodel.openai_data)
             
         print("qt_gpt_demo_node Stopping!")
         self.finish = False

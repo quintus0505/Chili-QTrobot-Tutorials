@@ -90,6 +90,7 @@ class QTChatBot():
 
         self.sia = SentimentIntensityAnalyzer()
         self.finish = False
+        self.start_writing = False
         self.defaultlanguage = 'en-US'        
         self.error_feedback = "Sorry. It seems I have some technical problem. Please try again."
 
@@ -119,13 +120,19 @@ class QTChatBot():
 
     def speak(self, text):
         sentences = sent_tokenize(text)
-        closing_words = ["bye","goodbye"]        
+        closing_words = ["bye","goodbye"]
+        writing_words = ["write", "writing"]        
         for sentence in sentences:
             words = word_tokenize(sentence.lower())
             if any(endw in closing_words for endw in words):
                 print("Bye detected!")
                 self.gesture_pub.publish(random.choice(["QT/bye"]))
-                self.finish = True                
+                self.finish = True 
+            elif any(endw in writing_words for endw in words):
+                print("Writing detected!")
+                self.gesture_pub.publish(random.choice(["yes"]))
+                self.start_writing = True
+                self.finish = True               
             elif 'surprise' in words or 'surprised' in words:
                 self.gesture_pub.publish(random.choice(["QT/surprise"]))
             elif '?' in words:

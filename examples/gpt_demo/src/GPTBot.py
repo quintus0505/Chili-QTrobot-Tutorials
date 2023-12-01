@@ -87,6 +87,8 @@ class QTChatBot():
         print("chartgpt setted")
         
         self.google_speech_data = load_csv_file(self.google_speech_to_text_file)
+        self.intro_sentences = ""
+        self.thought = "Here is the provided inner thought of you. You are talking to samll children, so you should use easy words and simple sentences. Also, when giving you the promt started with (THOUGHT), you should now that this is your inner thought of what to do so that you should not answer with 'sure', 'absolutely' or other words that not showing this is your inner thought."
 
         self.sia = SentimentIntensityAnalyzer()
         self.finish = False
@@ -121,7 +123,7 @@ class QTChatBot():
     def speak(self, text):
         sentences = sent_tokenize(text)
         closing_words = ["bye","goodbye"]
-        writing_words = ["write", "writing"]        
+        writing_words = ["write", "writing", "draw", "drawing", "test", "cast"]        
         for sentence in sentences:
             words = word_tokenize(sentence.lower())
             if any(endw in closing_words for endw in words):
@@ -223,15 +225,24 @@ class QTChatBot():
         return text
     
     def intro(self):
-        response =  self.aimodel.generate("Who are you?")
-        print("Intro: ",response)
-        self.talk(response)
+        self.emotion_pub.publish("QT/happy")
+        self.gesture_pub.publish(random.choice(["QT/happy", "QT/monkey"]))
+        self.intro_sentences =  self.aimodel.generate("Who are you? (at this stage just introduce yourself, do not ask any questions and make in less than 40 words).")
+        print("Intro: ",self.intro_sentences)
+        self.talk(self.intro_sentences)
 
     def ask_name(self):
         response = self.aimodel.generate("Ask the name of the person you are talking to by 'What is your name?', you should not give out any additional words(like sure, absolutely e.g.).")
         print("Ask name: ",response)
         self.talk(response)
 
+    def explain_bad_hearing(self):
+        self.emotion_pub.publish("QT/sad")    
+        self.gesture_pub.publish(random.choice(["QT/sad", "crossed_arm"]))
+        prompt = "You have introduced yourself via(" + self.intro_sentences + "). Explain to the children you are talking to that you have a bad hearing and sometimes you cannot hear them clearly starting with 'I am sorry that' without any technical details and within 40 words. You must not greet the children again nor say anything like you are answering a instruction like 'of course', 'sure', 'no problem'. This is just an inner instruction on how should you behave" 
+        response = self.aimodel.generate(prompt)
+        print("Explain bad hearing: ",response)
+        self.talk(response)
 
     def start(self):
         # self.intro()
@@ -266,8 +277,9 @@ class QTChatBot():
                 self.finish = True
             response = None
             bs = Synchronizer()
+            input_prompt = "The speech to text response is: (" + prompt  + ") Your task today is to teach a children write letter. If you find it not consistent with history and nothing to do with writing or drawing letter, note that this might due to the limitation of the speech to text engine. Please try to ask the speaker again to verify."
             results = bs.sync([
-                (0, lambda: self.aimodel.generate(prompt)),
+                (0, lambda: self.aimodel.generate(input_prompt)),
                 (0.5, lambda: self.think()),
             ])
             if isinstance(results[0], bool):                
@@ -284,7 +296,33 @@ class QTChatBot():
                 save_csv_file(self.openai_data_file, self.aimodel.openai_data)
             
         print("qt_gpt_demo_node Stopping!")
+        # self.finish = False
+
+
+    def listen(self):
+        # listen to the children's answer
         self.finish = False
+        while not rospy.is_shutdown() and not self.finish:
+            print('waiting for the answer') 
+            try:
+                start_time = time.time()   
+                recognize_result = self.recognizeQuestion(language=self.defaultlanguage, options='', timeout=0)
+                end_time = time.time()
+                api_time = end_time - start_time
+                if recognize_result:
+                    print("recognize_result: ", recognize_result)
+                    print("api_time: ", api_time, "input token num: ", len(recognize_result.transcript))
+                    self.google_speech_data.append((api_time, len(recognize_result.transcript)))
+                    break
+                else:
+                    print("recognize_result is None")                        
+                if not recognize_result or not recognize_result.transcript:
+                    self.bored()
+                    continue
+            except:
+                continue
+
+        return recognize_result
 
 
 if __name__ == "__main__":

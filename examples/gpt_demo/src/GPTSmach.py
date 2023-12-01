@@ -31,6 +31,7 @@ class Greeting(smach.State):
     def execute(self, userdata):
         rospy.loginfo("Executing state Greeting")
         userdata.GPTBot.intro()
+        userdata.GPTBot.explain_bad_hearing()
         userdata.GPTBot.ask_name()
 
         while not rospy.is_shutdown() and not userdata.GPTBot.finish:            
@@ -80,59 +81,17 @@ class Writing(smach.State):
         smach.State.__init__(self, outcomes=['writing_end'],
                              input_keys=['GPTBot', 'Get_Name_Result'],
                              output_keys=['GPTBot', 'Get_Name_Result'])
-        def execute(self, userdata):
-            rospy.loginfo("Executing state Writing")
-            prompt = "Now let us teach the children how to write, you should first ask which letter the children want to learn."
-            response =  userdata.GPTBot.aimodel.generate(prompt)
-            print("response: ", response)
-            userdata.GPTBot.talk(response)
-
-            # listen to the children's answer
-            while not rospy.is_shutdown() and not userdata.GPTBot.finish:
-                print('waiting for the letter') 
-                try:
-                    start_time = time.time()   
-                    recognize_result = userdata.GPTBot.recognizeQuestion(language=userdata.GPTBot.defaultlanguage, options='', timeout=0)
-                    end_time = time.time()
-                    api_time = end_time - start_time
-                    if recognize_result:
-                        print("recognize_result: ", recognize_result)
-                        print("api_time: ", api_time, "input token num: ", len(recognize_result.transcript))
-                        userdata.GPTBot.google_speech_data.append((api_time, len(recognize_result.transcript)))
-                        break
-                    else:
-                        print("recognize_result is None")                        
-                    if not recognize_result or not recognize_result.transcript:
-                        userdata.GPTBot.bored()
-                        continue
-                except:
-                    continue
-
-            print('Human:', recognize_result.transcript)
-            prompt = recognize_result.transcript
-            self.show_sentiment(self.get_sentiment(prompt))
-            words = word_tokenize(prompt.lower())
-
-            #TODO: write the letter 
-
-            return 'writing_end'
-        
-class WritingEnd(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['goodbye', 'writing'],
-                             input_keys=['GPTBot', 'Get_Name_Result'],
-                             output_keys=['GPTBot', 'Get_Name_Result'])    
-        
     def execute(self, userdata):
-        rospy.loginfo("Executing state WritingEnd")
-        prompt = "Now you have written the letter, ask the children if they want to learn another letter or stop for today."
+        rospy.loginfo("Executing state Writing")
+        prompt = "Now let us teach the children how to write, you should first ask which letter the children want to learn by saying 'Which letter do you want to learn?'"
         response =  userdata.GPTBot.aimodel.generate(prompt)
         print("response: ", response)
         userdata.GPTBot.talk(response)
 
         # listen to the children's answer
+        userdata.GPTBot.finish = False
         while not rospy.is_shutdown() and not userdata.GPTBot.finish:
-            print('waiting for the answer') 
+            print('waiting for the letter') 
             try:
                 start_time = time.time()   
                 recognize_result = userdata.GPTBot.recognizeQuestion(language=userdata.GPTBot.defaultlanguage, options='', timeout=0)
@@ -153,21 +112,58 @@ class WritingEnd(smach.State):
 
         print('Human:', recognize_result.transcript)
         prompt = recognize_result.transcript
-        self.show_sentiment(self.get_sentiment(prompt))
+        userdata.GPTBot.show_sentiment(userdata.GPTBot.get_sentiment(prompt))
+        words = word_tokenize(prompt.lower())
+
+        #TODO: write the letter 
+        userdata.GPTBot.talk("Here is the letter you want to learn")
+        return 'writing_end'
+        
+class WritingEnd(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['goodbye', 'writing'],
+                             input_keys=['GPTBot', 'Get_Name_Result'],
+                             output_keys=['GPTBot', 'Get_Name_Result'])    
+        
+    def execute(self, userdata):
+        rospy.loginfo("Executing state WritingEnd")
+        prompt = "Now you have written the letter, you should ask the children if they want to learn another letter or stop for today, please start with 'Cheers, '"
+        response =  userdata.GPTBot.aimodel.generate(prompt)
+        print("response: ", response)
+        userdata.GPTBot.talk(response)
+        userdata.GPTBot.finish = False
+        # listen to the children's answer
+        # while not rospy.is_shutdown() and not userdata.GPTBot.finish:
+        #     print('waiting for the answer') 
+        #     try:
+        #         start_time = time.time()   
+        #         recognize_result = userdata.GPTBot.recognizeQuestion(language=userdata.GPTBot.defaultlanguage, options='', timeout=0)
+        #         end_time = time.time()
+        #         api_time = end_time - start_time
+        #         if recognize_result:
+        #             print("recognize_result: ", recognize_result)
+        #             print("api_time: ", api_time, "input token num: ", len(recognize_result.transcript))
+        #             userdata.GPTBot.google_speech_data.append((api_time, len(recognize_result.transcript)))
+        #             break
+        #         else:
+        #             print("recognize_result is None")                        
+        #         if not recognize_result or not recognize_result.transcript:
+        #             userdata.GPTBot.bored()
+        #             continue
+        #     except:
+        #         continue
+        recognize_result = userdata.GPTBot.listen()
+
+        print('Human:', recognize_result.transcript)
+        prompt = recognize_result.transcript
+        userdata.GPTBot.show_sentiment(userdata.GPTBot.get_sentiment(prompt))
         words = word_tokenize(prompt.lower())
         closing_words = ["bye","goodbye","stop"]
         if any(word in closing_words for word in words):
             return 'goodbye'
         else:
+            prompt = "Now the chidren want to learn another letter, you should say start with 'Great, Let us'"
             return 'writing'
-
-    def execute(self, userdata):
-        rospy.loginfo("Executing state WritingEnd")
-        prompt = "Now let us teach the children how to write, you should first ask which letter the children want to learn."
-        response =  userdata.GPTBot.aimodel.generate(prompt)
-        print("response: ", response)
-        userdata.GPTBot.talk(response)
-        return 'conversation'
     
 
 

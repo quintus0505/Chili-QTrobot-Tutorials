@@ -8,8 +8,8 @@ class Davinci3():
         openai.api_key = rospy.get_param("/gpt_demo/chatengine/OPENAI_KEY", None)
         self.messages = []
         self.log_data = log_data
-        self.max_token_length_input = rospy.get_param("/gpt_demo/davinci3/max_token_length_input", 2048)
-        self.max_token_length_total = rospy.get_param("/gpt_demo/davinci3/max_token_length_total", 4096)
+        self.max_token_length_input = rospy.get_param("/gpt_demo/davinci3/max_token_length_input", 4096)
+        self.max_token_length_total = rospy.get_param("/gpt_demo/davinci3/max_token_length_total", 8192)
         self.prompt = rospy.get_param("/gpt_demo/davinci3/prompt", "")
         if log_data:
             self.openai_data_file = "davinci3_openai_data.csv"
@@ -40,7 +40,7 @@ class Davinci3():
                     model="text-davinci-003",
                     prompt=prompt_message,
                     temperature=rospy.get_param("/gpt_demo/davinci3/temperature", 0.8),
-                    max_tokens=rospy.get_param("/gpt_demo/davinci3/max_tokens", 60),
+                    max_tokens=rospy.get_param("/gpt_demo/davinci3/max_tokens", 80),
                     best_of=rospy.get_param("/gpt_demo/davinci3/best_of", 1),
                     n=rospy.get_param("/gpt_demo/davinci3/n", 1),
                     stop=rospy.get_param("/gpt_demo/davinci3/stop", ["Human:"]),

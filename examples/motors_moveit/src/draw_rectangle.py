@@ -21,6 +21,7 @@ def publish_signal(signal, signal_publisher):
 
 if __name__ == "__main__":
     eef_step = 0.0001
+    sys.argv = ['/home/yujun/catkin_ws/src/motors_moveit/src/draw_rectangle.py', 'joint_states:=/qt_robot/joints/state']
     moveit_commander.roscpp_initialize(sys.argv)
     rospy.init_node('draw_rectangle', anonymous=True)
 
@@ -34,7 +35,7 @@ if __name__ == "__main__":
     # We can get the name of the reference frame for this robot:
     planning_frame = group.get_planning_frame()
     print ("============ Reference frame: %s" % planning_frame)
-
+    print(sys.argv)
     # We can also print the name of the end-effector link for this group:
     eef_link = group.get_end_effector_link()
     print ("============ End effector: %s" % eef_link)

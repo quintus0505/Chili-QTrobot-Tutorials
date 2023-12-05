@@ -83,6 +83,7 @@ if __name__ == "__main__":
     group.set_start_state_to_current_state()
 
     # move to start waypoint
+    print(coordinations[0:5])
     group.set_position_target(coordinations[0])
     plan = group.go(wait=True)
     print("Reached starting point")

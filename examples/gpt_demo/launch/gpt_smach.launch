@@ -1,5 +1,6 @@
 <launch>
   <rosparam file="$(find gpt_demo)/config/gpt_bot.yaml" command="load"/>
-  <node name="gptsmach" pkg="gpt_demo" type="GPTSmach.py" output="screen"></node>
+  <node name="gptsmach" pkg="gpt_demo" type="GPTSmach.py" output="screen">
+  </node>
 </launch>
 

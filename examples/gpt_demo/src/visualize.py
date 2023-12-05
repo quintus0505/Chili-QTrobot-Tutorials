@@ -23,34 +23,20 @@ RED = (255, 0, 0)
 # Global variable to store the finish signal
 finish_signal = False
 
-class Visualizer:
+class Visualize:
     def __init__(self):
-        print(sys.argv)
-        moveit_commander.roscpp_initialize(sys.argv)
-        rospy.init_node('qt_visualizer', anonymous=True)
-
+        self.finish_signal = False
+        argv = ['/home/yujun/catkin_ws/src/gpt_demo/src/visualize.py', 'joint_states:=/qt_robot/joints/state']
+        moveit_commander.roscpp_initialize(argv)
+        try:
+            rospy.init_node('qt_visualizer', anonymous=True)
+        except:
+            pass
         self.robot = moveit_commander.RobotCommander()
         self.scene = moveit_commander.PlanningSceneInterface()
         self.group = moveit_commander.MoveGroupCommander("right_arm")
 
         rospy.sleep(3)
-
-        # We can get the name of the reference frame for this robot:
-        planning_frame = self.group.get_planning_frame()
-        print ("============ Reference frame: %s" % planning_frame)
-
-        # We can also print the name of the end-effector link for this group:
-        eef_link = self.group.get_end_effector_link()
-        print ("============ End effector: %s" % eef_link)
-
-        # We can get a list of all the groups in the robot:
-        group_names = self.robot.get_group_names()
-        print ("============ Robot Groups:", group_names)
-
-        # Sometimes for debugging it is useful to print the entire state of the
-        print("============ Printing robot state")
-        print("current pose: \n {}".format(self.group.get_current_pose().pose))
-        print("current pose reference frame: {}".format(self.group.get_pose_reference_frame()))
 
         self.group.allow_replanning(True)
         self.group.set_pose_reference_frame("base_link")
@@ -74,6 +60,9 @@ class Visualizer:
         pygame.display.set_caption("XY Position Visualization")
         # Initialize Pygame clock
         self.clock = pygame.time.Clock()    
+                # Subscribe to the signal topic
+        rospy.Subscriber("/qt_executing_signal", Bool, self.start_drawing_callback)
+        rospy.spin()  # Keep the program running and listen for the signal
 
     def handle_signal(self, msg):
         if msg.data:
@@ -84,8 +73,7 @@ class Visualizer:
             self.running = False
 
     def start_drawing(self):
-        global finish_signal  # Access the global finish_signal variable
-        finish_signal = False  # Reset the finish signal
+        self.finish_signal = False  # Reset the finish signal
         # Clear the screen
         self.screen.fill(WHITE)
         self.running = True
@@ -105,7 +93,7 @@ class Visualizer:
             # Check if 60 seconds have passed
             if elapsed_time >= 60:
                 self.running = False
-            if finish_signal:
+            if self.finish_signal:
                 self.running = False
             # Get the current XY position
             x = self.group.get_current_pose().pose.position.x - self.initial_x
@@ -136,19 +124,26 @@ class Visualizer:
         sys.exit()
 
 
-def start_drawing_callback(msg, visualizer):
-    global finish_signal  # Access the global finish_signal variable
-    if msg.data:
-        print("Received signal to start drawing")
-        visualizer.start_drawing()
-    else:
-        print("Received signal to finish drawing")
-        finish_signal = True  # Set the global finish signal
+    def start_drawing_callback(self, msg):
+        if msg.data:
+            print("Received signal to start drawing")
+            self.start_drawing()
+        else:
+            print("Received signal to finish drawing")
+            self.finish_signal = True  # Set the global finish signal
+            self.clear_trajectory()
+
+    def clear_trajectory(self):
+        # Clear the xy_positions list
+        self.xy_positions.clear()
+        # Fill the screen with white to clear it
+        self.screen.fill(WHITE)
+        pygame.display.flip()
 
 if __name__ == "__main__":
-    visualizer = Visualizer()
+    visualizer = Visualize()
     visualizer.pygame_init()
     # Subscribe to the signal topic
-    rospy.Subscriber("/qt_executing_signal", Bool, start_drawing_callback, callback_args=visualizer)
-    rospy.spin()  # Keep the program running and listen for the signal
+    # rospy.Subscriber("/qt_executing_signal", Bool, start_drawing_callback, callback_args=visualizer)
+    # rospy.spin()  # Keep the program running and listen for the signal
 

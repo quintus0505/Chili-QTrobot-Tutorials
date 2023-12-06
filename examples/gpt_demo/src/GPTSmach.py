@@ -18,7 +18,7 @@ from GPTBot import Synchronizer, QTChatBot
 from writting_control import Writting_Control
 from visualize import Visualize
 # from qt_riva_asr_app.srv import *
-
+import threading
 import smach
 import pandas as pd
 from datetime import datetime
@@ -71,9 +71,9 @@ class Greeting(smach.State):
 
 class Conversation(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['goodbye', 'writing'],
-                             input_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize'],
-                             output_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize'])    
+        smach.State.__init__(self, outcomes=['goodbye', 'writing_start'],
+                             input_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag'],
+                             output_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag'])    
     def execute(self, userdata):
         rospy.loginfo("Executing state Conversation")
         if not TEST_WRITING:
@@ -84,15 +84,31 @@ class Conversation(smach.State):
                 return 'goodbye'
         else:
             userdata.GPTBot.talk("Conversation")
-            Visualize.pygame_init()
-            return 'writing'
+            # userdata.Visualize.pygame_init()
+            return 'writing_start'
     
+class WritingStart(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['writing'],
+                             input_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'pygame_thread'],
+                             output_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'pygame_thread'])
+    def execute(self, userdata):
+        rospy.loginfo("Executing state WritingStart")
+        userdata.WrittingFlag = 2
+        userdata.GPTBot.talk("Writing Start")
+
+        # Start pygame in a separate thread and store it in userdata
+        # if not userdata.pygame_thread or not userdata.pygame_thread.is_alive():
+        #     userdata.pygame_thread = threading.Thread(target=userdata.Visualize.pygame_init)
+        #     userdata.pygame_thread.start()
+        return 'writing'
+
 
 class Writing(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['writing_end'],
-                             input_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize'],
-                             output_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize'])
+                             input_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'pygame_thread'],
+                             output_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'pygame_thread'])
     def execute(self, userdata):
         rospy.loginfo("Executing state Writing")
         if not TEST_WRITING:
@@ -130,7 +146,7 @@ class Writing(smach.State):
 
         userdata.GPTBot.talk("Here is the letter you want to learn")
         #TODO: write the letter 
-        userdata.Visualize.start_drawing()
+        userdata.WrittingFlag -= 1
         userdata.WrittingControl.writting_prepare_arm()
         userdata.WrittingControl.writting_execution()
         return 'writing_end'
@@ -138,8 +154,8 @@ class Writing(smach.State):
 class WritingEnd(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['goodbye', 'writing'],
-                             input_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize'],
-                             output_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize'])    
+                             input_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'pygame_thread'],
+                             output_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'pygame_thread'])
         
     def execute(self, userdata):
         rospy.loginfo("Executing state WritingEnd")
@@ -159,7 +175,7 @@ class WritingEnd(smach.State):
             #         end_time = time.time()
             #         api_time = end_time - start_time
             #         if recognize_result:
-            #             print("recognize_result: ", recognize_result)
+            #             print("recognize_result: ", recognize_result)            Visualize.pygame_init()
             #             print("api_time: ", api_time, "input token num: ", len(recognize_result.transcript))
             #             userdata.GPTBot.google_speech_data.append((api_time, len(recognize_result.transcript)))
             #             break
@@ -183,16 +199,19 @@ class WritingEnd(smach.State):
                 prompt = "Now the chidren want to learn another letter, you should say start with 'Great, Let us'"
                 return 'writing'
         else:
-            userdata.GPTBot.talk("I finished writing")
-            return 'goodbye'
+            if userdata.WrittingFlag == 0:
+                userdata.GPTBot.talk("I finished writing")
+                return 'goodbye'
+            else:
+                return 'writing'
     
 
 
 class Goodbye(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['end'],
-                             input_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize'],
-                             output_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize'])    
+                             input_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'pygame_thread'],
+                             output_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'pygame_thread'])
     def execute(self, userdata):
         rospy.loginfo("Executing state Goodbye")
         if not TEST_WRITING:
@@ -203,6 +222,9 @@ class Goodbye(smach.State):
             userdata.GPTBot.talk(response)
         else:
             userdata.GPTBot.talk("Goodbye")
+            # if hasattr(userdata, 'pygame_thread') and userdata.pygame_thread.is_alive():
+            #     userdata.Visualize.running = False  # Signal the thread to stop
+            #     userdata.pygame_thread.join()  # Wait for the thread to finish
         return 'end'
 
 
@@ -215,7 +237,9 @@ class GPTSmachManager():
         self.sm.userdata.gpt_bot = QTChatBot(log_data=False)  # Initialize the GPTBot instance
         self.sm.userdata.get_name_result = ''
         self.sm.userdata.writting_control = Writting_Control()
-        self.sm.userdata.visualize = Visualize()
+        self.sm.userdata.visualize = None
+        self.sm.userdata.writting_flag = 2
+        self.sm.userdata.pygame_thread = None
 
         now = datetime.now()
         dt_string = now.strftime("%d-%m-%Y_%H-%M-%S")
@@ -225,19 +249,22 @@ class GPTSmachManager():
             # Add states to the container
             smach.StateMachine.add('GREETING', Greeting(),
                                 transitions={'proceed':'CONVERSATION'},
-                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'Visualize':'visualize'})
+                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'Visualize':'visualize', 'WrittingFlag':'writting_flag'})
             smach.StateMachine.add('CONVERSATION', Conversation(),
-                                transitions={'goodbye':'GOODBYE', 'writing':'WRITING'},
-                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'Visualize':'visualize'})
+                                transitions={'goodbye':'GOODBYE', 'writing_start':'WRITTING_START'},
+                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'Visualize':'visualize', 'WrittingFlag':'writting_flag'})
             smach.StateMachine.add('GOODBYE', Goodbye(),
                                 transitions={'end':'end'},
-                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'Visualize':'visualize'})
+                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'Visualize':'visualize', 'WrittingFlag':'writting_flag'})
+            smach.StateMachine.add('WRITTING_START', WritingStart(),
+                                transitions={'writing':'WRITING'},
+                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'Visualize':'visualize', 'WrittingFlag':'writting_flag'})
             smach.StateMachine.add('WRITING', Writing(),    
                                 transitions={'writing_end':'WRITING_END'},
-                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'Visualize':'visualize'})
+                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'Visualize':'visualize', 'WrittingFlag':'writting_flag'})
             smach.StateMachine.add('WRITING_END', WritingEnd(),
                                 transitions={'goodbye':'GOODBYE', 'writing':'WRITING'},
-                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'Visualize':'visualize'})
+                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'Visualize':'visualize', 'WrittingFlag':'writting_flag'})
             
 
         self.sm.set_initial_state(['GREETING'])
@@ -245,7 +272,13 @@ class GPTSmachManager():
         # Execute SMACH plan
         outcome = self.sm.execute()
         rospy.loginfo("OUTCOME: " + outcome)
-        rospy.spin()
+        # rospy.spin()
+
+    def shutdown(self):
+        # Stop the Visualize thread
+        if self.sm.userdata.pygame_thread and self.sm.userdata.pygame_thread.is_alive():
+            self.sm.userdata.visualize.running = False  # Signal the thread to stop
+            self.sm.userdata.pygame_thread.join()  # Wait for the thread to finish
 
 
 
@@ -255,3 +288,7 @@ if __name__ == "__main__":
         myGPTSmachManager = GPTSmachManager()
     except rospy.ROSInterruptException:
         pass
+    except KeyboardInterrupt:
+        print("Ctrl+C pressed. Shutting down...")
+        if myGPTSmachManager:
+            myGPTSmachManager.shutdown()

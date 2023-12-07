@@ -9,8 +9,10 @@ import sys
 import rospy
 from geometry_msgs.msg import PoseStamped
 import time
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Int32
 import threading
+from writting_control import PEN_RISE, TABLE_HEIGH
+import numpy as np
 # import moveit_msgs.msg
 # import geometry_msgs.msg
 # from std_msgs.msg import String
@@ -46,6 +48,7 @@ class Visualize:
         self.group.clear_pose_targets()
         self.writing = False
         self.running = False
+        self.pen_up = False
         self.start_time = 0
         self.initial_x = 0
         self.initial_y = 0
@@ -67,15 +70,21 @@ class Visualize:
         self.ros_thread.start()
 
     def handle_signal(self, msg):
-        if msg.data:
+        if msg.data==1:
             print("Received signal to start drawing")
             self.running = True
             self.writing = True
             self.clear_trajectory()
-        else:
+        elif msg.data==0:
             print("Received signal to finish drawing")
             self.running = False
             self.writing = False
+        elif msg.data==2:
+            print("Received signal pen up")
+            self.pen_up = True
+        elif msg.data==3:
+            print("Received signal pen down")
+            self.pen_up = False
 
     def main_loop(self):
         self.finish_signal = False  # Reset the finish signal
@@ -86,6 +95,7 @@ class Visualize:
 
         self.initial_x = self.group.get_current_pose().pose.position.x
         self.initial_y = self.group.get_current_pose().pose.position.y
+        self.initial_z = self.group.get_current_pose().pose.position.z
 
         try:
             while not rospy.is_shutdown():
@@ -105,18 +115,19 @@ class Visualize:
                     # Get the current XY position
                     x = self.group.get_current_pose().pose.position.x - self.initial_x
                     y = self.group.get_current_pose().pose.position.y - self.initial_y
-
+                    z = self.group.get_current_pose().pose.position.z
                     # Convert the XY positions from meters to pixel coordinates
                     x_pixel = self.width/2 + int(x * 100 * 8) * 4  # Map -1.0 to 1.0 meters to 0 to 800 pixels
                     y_pixel = self.hight/2 + int(y * 100 * 6) * 4 # Map -1.0 to 1.0 meters to 600 to 0 pixels
-
-
-                    self.xy_positions.append((x_pixel, y_pixel))
+                    print(x_pixel, y_pixel, z)
+                    if not self.pen_up:
+                        self.xy_positions.append((x_pixel, y_pixel))
                     # Clear the screen
                     self.screen.fill(WHITE)
                     # Draw the trajectory in black
                     for i in range(1, len(self.xy_positions)):
-                        pygame.draw.line(self.screen, BLACK, self.xy_positions[i - 1], self.xy_positions[i], 8)
+                        if np.linalg.norm(np.array(self.xy_positions[i]) - np.array(self.xy_positions[i - 1])) < 50:
+                            pygame.draw.line(self.screen, BLACK, self.xy_positions[i - 1], self.xy_positions[i], 8)
 
                     # Draw the current XY position in red
                     pygame.draw.circle(self.screen, RED, (x_pixel, y_pixel), 14)
@@ -135,12 +146,12 @@ class Visualize:
 
 
     def start_drawing_callback(self, msg):
-        if msg.data:
+        if msg.data==1:
             print("Received signal to start drawing")
             self.running = True
             self.clear_trajectory()
             self.screen.fill(WHITE)
-        else:
+        elif msg.data==0:
             print("Received signal to finish drawing")
             self.finish_signal = True  # Set the global finish signal
             
@@ -153,7 +164,7 @@ class Visualize:
         pygame.display.flip()
 
     def ros_listener_thread(self):
-        rospy.Subscriber("/qt_executing_signal", Bool, self.handle_signal)
+        rospy.Subscriber("/qt_executing_signal", Int32, self.handle_signal)
         rospy.spin()
 
 if __name__ == "__main__":

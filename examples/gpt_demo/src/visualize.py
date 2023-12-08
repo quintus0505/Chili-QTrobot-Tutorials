@@ -119,6 +119,7 @@ class Visualize:
                     # Convert the XY positions from meters to pixel coordinates
                     x_pixel = self.width/2 + int(x * 100 * 8) * 4  # Map -1.0 to 1.0 meters to 0 to 800 pixels
                     y_pixel = self.hight/2 + int(y * 100 * 6) * 4 # Map -1.0 to 1.0 meters to 600 to 0 pixels
+                    print("coordinate")
                     print(x_pixel, y_pixel, z)
                     if not self.pen_up:
                         self.xy_positions.append((x_pixel, y_pixel))

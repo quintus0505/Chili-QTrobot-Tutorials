@@ -26,6 +26,7 @@ import sys
 
 TEST_WRITING = True
 Available_Letter = ['F', 'X', 'H', 'Q', 'S']
+TEST_LETTER = "S"
 
 class Greeting(smach.State):
     def __init__(self):
@@ -95,7 +96,6 @@ class WritingStart(smach.State):
     def execute(self, userdata):
         rospy.loginfo("Executing state WritingStart")
         # userdata.GPTBot.talk("Writing Start")
-        userdata.WrittingControl.writting_prepare_arm()
         if not TEST_WRITING:
             prompt = "Now teach the children how to write, you should first ask which letter the children want to learn by saying 'Which letter do you want to learn?'" + \
             "You should tell the children currently you can only write letters in" + str(Available_Letter) + "You should start with 'I can only write letters'"
@@ -175,8 +175,9 @@ class Writing(smach.State):
     def execute(self, userdata):
         rospy.loginfo("Executing state Writing")
         if TEST_WRITING:
-            userdata.target_letter = 'S'
-            
+            userdata.target_letter = TEST_LETTER
+
+        userdata.WrittingControl.writting_prepare_arm()
         userdata.GPTBot.talk("Here is the letter you want to learn")
         #TODO: write the letter 
         userdata.WrittingFlag -= 1

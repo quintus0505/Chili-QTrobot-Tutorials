@@ -149,6 +149,31 @@ class QTChatBot():
         # home pos
         self.gesture_pub.publish(random.choice(["QT/neutral"]))
 
+    def no_guesture_speak(self, text):
+        sentences = sent_tokenize(text)
+        closing_words = ["bye","goodbye"]
+        writing_words = ["write", "writing", "draw", "drawing", "test", "cast"]
+        for sentence in sentences:
+            words = word_tokenize(sentence.lower())
+            if any(endw in closing_words for endw in words):
+                print("Bye detected!")
+                self.finish = True 
+            elif any(endw in writing_words for endw in words):
+                print("Writing detected!")
+                self.start_writing = True
+                self.finish = True               
+            elif 'surprise' in words or 'surprised' in words:
+                pass
+            elif '?' in words:
+                pass
+            elif 'yes' in words:
+                pass
+            elif 'no' in words:
+                pass
+            elif len(words) > 5 and random.choice([0, 1]) == 0:
+                pass
+            self.talk(sentence)
+
     def think(self):
         if random.choice([0, 1]) == 0:
             self.gesture_pub.publish(random.choice(["QT/angry", "think_right"]))
@@ -226,7 +251,7 @@ class QTChatBot():
     
     def intro(self):
         self.emotion_pub.publish("QT/happy")
-        self.gesture_pub.publish(random.choice(["QT/happy", "QT/monkey"]))
+        # self.gesture_pub.publish(random.choice(["QT/happy", "QT/monkey"]))
         self.intro_sentences =  self.aimodel.generate("Who are you? (at this stage just introduce yourself, do not ask any questions and make in less than 40 words).")
         print("Intro: ",self.intro_sentences)
         self.talk(self.intro_sentences)
@@ -238,7 +263,7 @@ class QTChatBot():
 
     def explain_bad_hearing(self):
         self.emotion_pub.publish("QT/sad")    
-        self.gesture_pub.publish(random.choice(["QT/sad", "crossed_arm"]))
+        # self.gesture_pub.publish(random.choice(["QT/sad", "crossed_arm"]))
         prompt = "You have introduced yourself via(" + self.intro_sentences + "). Explain to the children you are talking to that you have a bad hearing and sometimes you cannot hear them clearly starting with 'I am sorry that' without any technical details and within 40 words. You must not greet the children again nor say anything like you are answering a instruction like 'of course', 'sure', 'no problem'. This is just an inner instruction on how should you behave" 
         response = self.aimodel.generate(prompt)
         print("Explain bad hearing: ",response)
@@ -277,7 +302,10 @@ class QTChatBot():
                 self.finish = True
             response = None
             bs = Synchronizer()
-            input_prompt = "The speech to text response is: (" + prompt  + ") Your task today is to teach a children write letter. If you find it not consistent with history and nothing to do with writing or drawing letter, note that this might due to the limitation of the speech to text engine. Please try to ask the speaker again to verify."
+            # input_prompt = "The speech to text response is: (" + prompt  + ") If you find it not consistent with history and nothing to do with writing or drawing letter, note that this might due to the limitation of the speech to text engine. Please try to ask the speaker again to verify."
+            # input_prompt = "The speech to text response is: (" + prompt  + ") If you find it so strange (normal greating is fine, strange answers include those not possible for a children less than 8 to ask)" + \
+            # ", note that this might due to the limitation of the speech to text engine. Please try to ask the speaker again to verify."
+            input_prompt = prompt
             results = bs.sync([
                 (0, lambda: self.aimodel.generate(input_prompt)),
                 (0.5, lambda: self.think()),
@@ -291,6 +319,47 @@ class QTChatBot():
                 response = self.error_feedback
 
             self.speak(self.refine_sentence(response))
+            if self.log_data:
+                save_csv_file(self.google_speech_to_text_file, self.google_speech_data)
+                save_csv_file(self.openai_data_file, self.aimodel.openai_data)
+            
+        print("qt_gpt_demo_node Stopping!")
+        # self.finish = False
+
+
+    def no_guesture_start(self):
+        # self.intro()
+        while not rospy.is_shutdown() and not self.finish:            
+            print('listenting...') 
+            
+            try:
+                start_time = time.time()   
+                recognize_result = self.recognizeQuestion(language=self.defaultlanguage, options='', timeout=0)
+                end_time = time.time()
+                api_time = end_time - start_time
+                if recognize_result:
+                    print("recognize_result: ", recognize_result)
+                    print("api_time: ", api_time, "input token num: ", len(recognize_result.transcript))
+                    if self.log_data:
+                        self.google_speech_data.append((api_time, len(recognize_result.transcript)))
+                else:
+                    print("recognize_result is None")                        
+                if not recognize_result or not recognize_result.transcript:
+                    # self.bored()
+                    continue
+            except:
+                continue
+
+            print('Human:', recognize_result.transcript)
+            prompt = recognize_result.transcript
+            words = word_tokenize(prompt.lower())
+            response = None
+            response = self.aimodel.generate(prompt)
+            print("api_time: ", api_time, "input token num: ", len(words))
+            if not response:
+                response = self.error_feedback
+
+            self.no_guesture_speak(self.refine_sentence(response))
             if self.log_data:
                 save_csv_file(self.google_speech_to_text_file, self.google_speech_data)
                 save_csv_file(self.openai_data_file, self.aimodel.openai_data)

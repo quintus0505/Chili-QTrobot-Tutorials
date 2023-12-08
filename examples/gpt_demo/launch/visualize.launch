@@ -1,0 +1,3 @@
+<launch>
+  <node name="gptbot" pkg="gpt_demo" type="visualize.py" output="screen"></node>
+</launch>

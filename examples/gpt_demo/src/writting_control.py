@@ -17,7 +17,7 @@ PEN_RISE = 0.04
 
 class Writting_Control():
     def __init__(self):
-        self.eef_step = 0.00015
+        self.eef_step = 0.0001
         argv = ['/home/yujun/catkin_ws/src/gpt_demo/src/writting.py', 'joint_states:=/qt_robot/joints/state']
         moveit_commander.roscpp_initialize(argv)
         try:
@@ -434,7 +434,7 @@ class Writting_Control():
         # execute the plan
         self.group.execute(self.plan, True)
 
-    def writting_execution(self):
+    def writting_execution(self, letter='Q'):
 
         # generate waypoints
         waypoints = []
@@ -443,11 +443,23 @@ class Writting_Control():
 
         # Publish a signal on the topic
         self.publish_signal("start")
-
+        print('letter: ', letter)
+        if letter == 'F':
+            self.write_letter_F()
+        elif letter == 'X':
+            self.write_letter_X()
+        elif letter == 'H':
+            self.write_letter_H()
+        elif letter == 'Q':
+            self.write_letter_Q()
+        elif letter == 'S':
+            self.write_letter_S()
+        else:
+            print("Invalid letter")
         # self.write_letter_F()
         # self.write_letter_X()
         # self.write_letter_H()
         # self.write_letter_Q()
-        self.write_letter_S()
+        # self.write_letter_S()
 
         self.publish_signal("finish")

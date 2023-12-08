@@ -13,11 +13,11 @@ import time
 # from moveit_commander.conversions import pose_to_list
 
 TABLE_HEIGH = 0.35
-PEN_RISE = 0.0
+PEN_RISE = 0.04
 
 class Writting_Control():
     def __init__(self):
-        self.eef_step = 0.0001
+        self.eef_step = 0.00015
         argv = ['/home/yujun/catkin_ws/src/gpt_demo/src/writting.py', 'joint_states:=/qt_robot/joints/state']
         moveit_commander.roscpp_initialize(argv)
         try:
@@ -73,18 +73,11 @@ class Writting_Control():
 
     def writting_prepare_arm(self):
         self.group.set_start_state_to_current_state()
-        # self.group.set_position_target([0.18, -0.25, TABLE_HEIGH])
-        # self.group.set_position_target([0.17, -0.26, 0.35])
-        self.group.set_position_target([0.20+0.03, -0.23, TABLE_HEIGH+0.1])
+        self.group.set_position_target([0.18, -0.25, TABLE_HEIGH])
         self.plan = self.group.go(wait=True)
-        print("============ Printing robot state")
-        print("current pose: \n {}".format(self.group.get_current_pose().pose))
-        print("stretching")
-        self.group.set_position_target([0.203, -0.22, TABLE_HEIGH])
+        self.group.set_position_target([0.20, -0.22, TABLE_HEIGH])
         self.plan = self.group.go(wait=True)
         print("Reached starting point")
-        print("============ Printing robot state")
-        print("current pose: \n {}".format(self.group.get_current_pose().pose))
 
     def pen_down(self):
         # get current pose
@@ -353,7 +346,7 @@ class Writting_Control():
         self.publish_signal("pen_down")
 
         # Tail end point
-        tail_length = 0.035
+        tail_length = 0.03
         self.wpose.position.x += tail_length / 2
         self.wpose.position.y += tail_length / 2
 
@@ -367,7 +360,7 @@ class Writting_Control():
     def write_letter_S(self):
         # Define the dimensions for the segments
         segment_length = 0.025  # Length of each segment
-        horizontal_segment_length = 0.012
+        horizontal_segment_length = 0.015
 
         # Drawing the tail of the letter Q
         self.waypoints.clear()
@@ -440,7 +433,6 @@ class Writting_Control():
         
         # execute the plan
         self.group.execute(self.plan, True)
-
     def writting_execution(self, letter='Q'):
 
         # generate waypoints

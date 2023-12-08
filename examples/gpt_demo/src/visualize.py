@@ -108,10 +108,10 @@ class Visualize:
                     elapsed_time = time.time() - self.start_time
 
                     # Check if 60 seconds have passed
-                    if elapsed_time >= 60:
-                        self.running = False
-                    if self.finish_signal:
-                        self.running = False
+                    # if elapsed_time >= 60:
+                    #     self.running = False
+                    # if self.finish_signal:
+                    #     self.running = False
                     # Get the current XY position
                     x = self.group.get_current_pose().pose.position.x - self.initial_x
                     y = self.group.get_current_pose().pose.position.y - self.initial_y

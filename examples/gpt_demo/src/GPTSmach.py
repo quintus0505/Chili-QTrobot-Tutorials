@@ -24,7 +24,7 @@ import pandas as pd
 from datetime import datetime
 import sys
 
-TEST_WRITING = True
+TEST_WRITING = False
 Available_Letter = ['F', 'X', 'H', 'Q', 'S']
 TEST_LETTER = "S"
 
@@ -177,10 +177,10 @@ class Writing(smach.State):
         if TEST_WRITING:
             userdata.target_letter = TEST_LETTER
 
-        userdata.WrittingControl.writting_prepare_arm()
         userdata.GPTBot.talk("Here is the letter you want to learn")
         #TODO: write the letter 
         userdata.WrittingFlag -= 1
+        userdata.WrittingControl.writting_prepare_arm()
         userdata.WrittingControl.writting_execution(letter=userdata.target_letter)
         if userdata.WrittingFlag == 0:
             userdata.GPTBot.talk("I finished writing")

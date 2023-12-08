@@ -8,8 +8,8 @@ class Davinci3():
         openai.api_key = rospy.get_param("/gpt_demo/chatengine/OPENAI_KEY", None)
         self.messages = []
         self.log_data = log_data
-        self.max_token_length_input = rospy.get_param("/gpt_demo/davinci3/max_token_length_input", 4096)
-        self.max_token_length_total = rospy.get_param("/gpt_demo/davinci3/max_token_length_total", 8192)
+        self.max_token_length_input = rospy.get_param("/gpt_demo/davinci3/max_token_length_input", 4096*4)
+        self.max_token_length_total = rospy.get_param("/gpt_demo/davinci3/max_token_length_total", 8192*4)
         self.prompt = rospy.get_param("/gpt_demo/davinci3/prompt", "")
         if log_data:
             self.openai_data_file = "davinci3_openai_data.csv"

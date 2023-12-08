@@ -16,7 +16,6 @@ from qt_robot_interface.srv import *
 from qt_gspeech_app.srv import *
 from GPTBot import Synchronizer, QTChatBot
 from writting_control import Writting_Control
-from visualize import Visualize
 # from qt_riva_asr_app.srv import *
 import threading
 import smach
@@ -91,15 +90,17 @@ class Conversation(smach.State):
 class WritingStart(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['writing'],
-                             input_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'pygame_thread', 'target_letter'],
-                             output_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'pygame_thread', 'target_letter'])
+                             input_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'target_letter', 'teaching_times', 'taught_letters'],
+                             output_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'target_letter', 'teaching_times', 'taught_letters'])
     def execute(self, userdata):
         rospy.loginfo("Executing state WritingStart")
         # userdata.GPTBot.talk("Writing Start")
         if not TEST_WRITING:
-            prompt = "Now teach the children how to write, you should first ask which letter the children want to learn by saying 'Which letter do you want to learn?'" + \
+            prompt = "Now teach the children how to write, previously you have taught this children" + str(userdata.teaching_times) + "times, and you the letters you have taught are in this list: " + \
+            str(userdata.target_letter) + " .You should first ask which letter the children want to learn by saying 'Which letter do you want to learn?'" + \
             "You should tell the children currently you can only write letters in" + str(Available_Letter) + "You should start with 'I can only write letters'"
             response =  userdata.GPTBot.aimodel.generate(prompt)
+
             print("response: ", response)
             userdata.GPTBot.talk(response)
 
@@ -130,8 +131,6 @@ class WritingStart(smach.State):
                 words = word_tokenize(prompt.lower())
                 print("words: ", words)
                 # if any of the letter in Available_Letter appears in the words, no matter upper or lower case, we will take it as the target letter
-                # if any(word in Available_Letter for word in words):
-                #     userdata.target_letter = words[0].upper()
                 if any(word in Available_Letter for word in words) or any(word in [letter.lower() for letter in Available_Letter] for word in words):
                     for word in words:
                         if word in Available_Letter:
@@ -142,16 +141,9 @@ class WritingStart(smach.State):
                             break
 
                 response = None
-                bs = Synchronizer()
                 input_prompt = "The speech to text response is: (" + prompt  + ") Your task in this state is to get the letter which is available in" + str(Available_Letter) + \
-                "If you get the letter, you should say 'Great, Let us start to write the letter', or you should ask again or verify the answer by the children"
-                # results = bs.sync([
-                #     (0, lambda: userdata.GPTBot.aimodel.generate(input_prompt)),
-                #     (0.5, lambda: userdata.GPTBot.think()),
-                # ])
-                # if isinstance(results[0], bool):                
-                #     response = results[1]
-                # else:
+                "If you get the letter, you should say 'Great, Let us start to write the letter', or you should ask again, explain your bad hearing and verify the answer by the children"
+
                 #     response = results[0]   
                 response =  userdata.GPTBot.aimodel.generate(input_prompt)
                 print("api_time: ", api_time, "input token num: ", len(words))
@@ -162,7 +154,7 @@ class WritingStart(smach.State):
                 userdata.GPTBot.talk(userdata.GPTBot.refine_sentence(response))
         else:
             userdata.GPTBot.talk("Writing Start")
-
+        userdata.teaching_times+=1
         userdata.WrittingFlag = 2
         return 'writing'
 
@@ -170,8 +162,8 @@ class WritingStart(smach.State):
 class Writing(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['writing_end', "writting"],
-                             input_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'pygame_thread', 'target_letter'],
-                             output_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'pygame_thread', 'target_letter'])
+                             input_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'target_letter', 'teaching_times', 'taught_letters'],
+                             output_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'target_letter', 'teaching_times', 'taught_letters'])
     def execute(self, userdata):
         rospy.loginfo("Executing state Writing")
         if TEST_WRITING:
@@ -182,8 +174,10 @@ class Writing(smach.State):
         userdata.WrittingFlag -= 1
         userdata.WrittingControl.writting_prepare_arm()
         userdata.WrittingControl.writting_execution(letter=userdata.target_letter)
+        
         if userdata.WrittingFlag == 0:
             userdata.GPTBot.talk("I finished writing")
+            userdata.taught_letters.append(userdata.target_letter)
             return 'writing_end'
         else:
             return 'writting'
@@ -191,12 +185,13 @@ class Writing(smach.State):
 class WritingEnd(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['goodbye', 'writing_start'],
-                             input_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'pygame_thread', 'target_letter'],
-                             output_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'pygame_thread', 'target_letter'])
+                             input_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'target_letter', 'teaching_times', 'taught_letters'],
+                             output_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'target_letter', 'teaching_times', 'taught_letters'])
         
     def execute(self, userdata):
         rospy.loginfo("Executing state WritingEnd")
         userdata.target_letter = None
+
         if not TEST_WRITING:
             prompt = "Now you have written the letter. Keep the response short and simple, you should ask the children if they want to learn another letter or stop for today, please start with 'Cheers, ' or 'Great, '."
             response =  userdata.GPTBot.aimodel.generate(prompt)
@@ -249,13 +244,14 @@ class WritingEnd(smach.State):
 class Goodbye(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['end'],
-                             input_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'pygame_thread'],
-                             output_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag', 'pygame_thread'])
+                             input_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag','taught_letters'],
+                             output_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag','taught_letters'])
     def execute(self, userdata):
         rospy.loginfo("Executing state Goodbye")
         if not TEST_WRITING:
             prompt = "Now we are at the goodbye stage. We are using the google speech to text api to recognize the name of the people you are talking to, the result is" + userdata.Get_Name_Result + "If you get name, you should express your thanks\
-            to the person you are talking to, if you cannot get the name, you can just say 'my friend' instead of the name. Please act like you are talking to a person rather than acting based on the command and express your thanks to the person you are talking to. The conversation will end after you express your thanks"
+            to the person you are talking to, if you cannot get the name, you can just say 'my friend' instead of the name. Please act like you are talking to a person rather than acting based on the command and express your thanks to the person you are talking to. and conclude today you taugh letters" + \
+            str(userdata.taught_letters) + "The conversation will end after you made conclusion and express your thanks"
             response =  userdata.GPTBot.aimodel.generate(prompt)
             print("response: ", response)
             userdata.GPTBot.talk(response)
@@ -273,10 +269,10 @@ class GPTSmachManager():
         self.sm.userdata.gpt_bot = QTChatBot(log_data=False)  # Initialize the GPTBot instance
         self.sm.userdata.get_name_result = ''
         self.sm.userdata.writting_control = Writting_Control()
-        self.sm.userdata.visualize = None
         self.sm.userdata.writting_flag = 2
-        self.sm.userdata.pygame_thread = None
         self.sm.userdata.target_letter = None
+        self.sm.userdata.teaching_times = 0
+        self.sm.userdata.taught_letters = []
 
         now = datetime.now()
         dt_string = now.strftime("%d-%m-%Y_%H-%M-%S")
@@ -286,22 +282,22 @@ class GPTSmachManager():
             # Add states to the container
             smach.StateMachine.add('GREETING', Greeting(),
                                 transitions={'proceed':'CONVERSATION'},
-                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'Visualize':'visualize', 'WrittingFlag':'writting_flag'})
+                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'WrittingFlag':'writting_flag'})
             smach.StateMachine.add('CONVERSATION', Conversation(),
                                 transitions={'goodbye':'GOODBYE', 'writing_start':'WRITTING_START'},
-                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'Visualize':'visualize', 'WrittingFlag':'writting_flag'})
+                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'WrittingFlag':'writting_flag'})
             smach.StateMachine.add('GOODBYE', Goodbye(),
                                 transitions={'end':'end'},
-                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'Visualize':'visualize', 'WrittingFlag':'writting_flag'})
+                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'WrittingFlag':'writting_flag'})
             smach.StateMachine.add('WRITTING_START', WritingStart(),
                                 transitions={'writing':'WRITING'},
-                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'Visualize':'visualize', 'WrittingFlag':'writting_flag'})
+                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'WrittingFlag':'writting_flag'})
             smach.StateMachine.add('WRITING', Writing(),    
                                 transitions={'writing_end':'WRITING_END', 'writting':'WRITING'},
-                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'Visualize':'visualize', 'WrittingFlag':'writting_flag'})
+                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'WrittingFlag':'writting_flag'})
             smach.StateMachine.add('WRITING_END', WritingEnd(),
                                 transitions={'goodbye':'GOODBYE', 'writing_start':'WRITTING_START'},
-                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'Visualize':'visualize', 'WrittingFlag':'writting_flag'})
+                                remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WrittingControl':'writting_control', 'WrittingFlag':'writting_flag'})
             
 
         self.sm.set_initial_state(['GREETING'])
@@ -310,12 +306,6 @@ class GPTSmachManager():
         outcome = self.sm.execute()
         rospy.loginfo("OUTCOME: " + outcome)
         # rospy.spin()
-
-    def shutdown(self):
-        # Stop the Visualize thread
-        if self.sm.userdata.pygame_thread and self.sm.userdata.pygame_thread.is_alive():
-            self.sm.userdata.visualize.running = False  # Signal the thread to stop
-            self.sm.userdata.pygame_thread.join()  # Wait for the thread to finish
 
 
 
@@ -327,5 +317,3 @@ if __name__ == "__main__":
         pass
     except KeyboardInterrupt:
         print("Ctrl+C pressed. Shutting down...")
-        if myGPTSmachManager:
-            myGPTSmachManager.shutdown()

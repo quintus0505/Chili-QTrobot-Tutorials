@@ -327,7 +327,7 @@ class QTChatBot():
         # self.finish = False
 
 
-    def no_guesture_start(self):
+    def no_guesture_start(self, current_time=0):
         # self.intro()
         while not rospy.is_shutdown() and not self.finish:            
             print('listenting...') 

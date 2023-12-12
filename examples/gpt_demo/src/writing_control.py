@@ -15,13 +15,13 @@ import time
 TABLE_HEIGH = 0.35
 PEN_RISE = 0.04
 
-class Writting_Control():
+class Writing_Control():
     def __init__(self):
         self.eef_step = 0.00015
-        argv = ['/home/yujun/catkin_ws/src/gpt_demo/src/writting.py', 'joint_states:=/qt_robot/joints/state']
+        argv = ['/home/yujun/catkin_ws/src/gpt_demo/src/writing.py', 'joint_states:=/qt_robot/joints/state']
         moveit_commander.roscpp_initialize(argv)
         try:
-            rospy.init_node('writting', anonymous=True)
+            rospy.init_node('writing', anonymous=True)
         except:
             pass
         self.robot = moveit_commander.RobotCommander()
@@ -71,7 +71,7 @@ class Writting_Control():
             print("publishing pen_down")
             self.signal_publisher.publish(3)
 
-    def writting_prepare_arm(self):
+    def writing_prepare_arm(self):
         self.group.set_start_state_to_current_state()
         self.group.set_position_target([0.18, -0.25, TABLE_HEIGH])
         self.plan = self.group.go(wait=True)
@@ -422,7 +422,7 @@ class Writting_Control():
 
         print("done")
 
-    def writting_end_arm(self):
+    def writing_end_arm(self):
         """
         x: 0.008657861640165741
         y: -0.19843352310414675
@@ -454,7 +454,7 @@ class Writting_Control():
         
         # execute the plan
         self.group.execute(self.plan, True)
-    def writting_execution(self, letter='Q'):
+    def writing_execution(self, letter='Q'):
 
         # generate waypoints
         waypoints = []
@@ -486,5 +486,5 @@ class Writting_Control():
 
 if __name__ == "__main__":
     print("writing control test")
-    control = Writting_Control()
-    control.writting_prepare_arm()
+    control = Writing_Control()
+    control.writing_prepare_arm()

@@ -23,9 +23,9 @@ import pandas as pd
 from datetime import datetime
 import sys
 
-TEST_WRITING = True
+TEST_WRITING = False  # Flag to just test the writing part, no interaction with the children
 Available_Letter = ['F', 'X', 'H', 'Q', 'S']
-TEST_LETTER = "S"
+TEST_LETTER = "F"
 
 class Greeting(smach.State):
     def __init__(self):

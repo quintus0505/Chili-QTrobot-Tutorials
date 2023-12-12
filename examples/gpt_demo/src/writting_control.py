@@ -93,7 +93,7 @@ class Writting_Control():
 
     def write_letter_F(self):
         vertical_line_length = 0.05
-        horizontal_line_length = 0.02
+        horizontal_line_length = 0.028
         middle_line_offset = vertical_line_length / 5
 
         # generate waypoints

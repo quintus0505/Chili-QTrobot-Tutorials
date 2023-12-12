@@ -140,7 +140,7 @@ class Visualize:
                     # Convert the XY positions from meters to pixel coordinates
                     # x_pixel = self.width/3 + int(x * 100 * 8) * 4  # Map -1.0 to 1.0 meters to 0 to 800 pixels
                     # y_pixel = self.hight/2 + int(y * 100 * 6) * 4 # Map -1.0 to 1.0 meters to 600 to 0 pixels
-                    x_pixel = int(x * 100 * 8) * 4  # Map -1.0 to 1.0 meters to 0 to 800 pixels
+                    x_pixel = int(x * 100 * 6) * 4  # Map -1.0 to 1.0 meters to 0 to 800 pixels
                     y_pixel = int(y * 100 * 6) * 4  # Map -1.0 to 1.0 meters to 600 to 0 pixels
                     x_pixel = x_pixel + self.width * 4/9
                     y_pixel = y_pixel + self.hight * 4/9

@@ -39,7 +39,26 @@ class Visualize:
         self.scene = moveit_commander.PlanningSceneInterface()
         self.group = moveit_commander.MoveGroupCommander("right_arm")
 
-        rospy.sleep(3)
+        self.plan = None
+        self.waypoints = []
+        self.wpose = 0
+
+        # We can get the name of the reference frame for this robot:
+        planning_frame = self.group.get_planning_frame()
+        print ("============ Reference frame: %s" % planning_frame)
+
+        # We can also print the name of the end-effector link for this group:
+        eef_link = self.group.get_end_effector_link()
+        print ("============ End effector: %s" % eef_link)
+
+        # We can get a list of all the groups in the robot:
+        group_names = self.robot.get_group_names()
+        print ("============ Robot Groups:", self.robot.get_group_names())
+
+        # Sometimes for debugging it is useful to print the entire state of the
+        print("============ Printing robot state")
+        print("current pose: \n {}".format(self.group.get_current_pose().pose))
+        print("current pose reference frame: {}".format(self.group.get_pose_reference_frame()))
 
         self.group.allow_replanning(True)
         self.group.set_pose_reference_frame("base_link")
@@ -75,6 +94,9 @@ class Visualize:
             self.running = True
             self.writing = True
             self.clear_trajectory()
+            self.initial_x = self.group.get_current_pose().pose.position.x
+            self.initial_y = self.group.get_current_pose().pose.position.y
+            self.initial_z = self.group.get_current_pose().pose.position.z
         elif msg.data==0:
             print("Received signal to finish drawing")
             self.running = False
@@ -102,7 +124,6 @@ class Visualize:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         sys.exit()
-
                 if self.running and self.writing:
                     # Calculate the elapsed time
                     elapsed_time = time.time() - self.start_time
@@ -117,8 +138,12 @@ class Visualize:
                     y = self.group.get_current_pose().pose.position.y - self.initial_y
                     z = self.group.get_current_pose().pose.position.z
                     # Convert the XY positions from meters to pixel coordinates
-                    x_pixel = self.width/2 + int(x * 100 * 8) * 4  # Map -1.0 to 1.0 meters to 0 to 800 pixels
-                    y_pixel = self.hight/2 + int(y * 100 * 6) * 4 # Map -1.0 to 1.0 meters to 600 to 0 pixels
+                    # x_pixel = self.width/3 + int(x * 100 * 8) * 4  # Map -1.0 to 1.0 meters to 0 to 800 pixels
+                    # y_pixel = self.hight/2 + int(y * 100 * 6) * 4 # Map -1.0 to 1.0 meters to 600 to 0 pixels
+                    x_pixel = int(x * 100 * 8) * 4  # Map -1.0 to 1.0 meters to 0 to 800 pixels
+                    y_pixel = int(y * 100 * 6) * 4  # Map -1.0 to 1.0 meters to 600 to 0 pixels
+                    x_pixel = x_pixel + self.width * 4/9
+                    y_pixel = y_pixel + self.hight * 4/9
                     print("coordinate")
                     print(x_pixel, y_pixel, z)
                     if not self.pen_up:

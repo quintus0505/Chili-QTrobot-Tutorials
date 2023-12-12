@@ -422,6 +422,27 @@ class Writting_Control():
 
         print("done")
 
+    def writting_end_arm(self):
+        """
+        x: 0.008657861640165741
+        y: -0.19843352310414675
+        z: 0.14804548207158294
+
+        """
+        # move to initial position
+        self.waypoints.clear()
+        self.wpose = self.group.get_current_pose().pose
+        self.waypoints.append(copy.deepcopy(self.wpose))
+        self.wpose.position.x = 0.17
+        self.wpose.position.y = -0.17
+        self.wpose.position.z = 0.28
+        self.waypoints.append(copy.deepcopy(self.wpose))
+        self.wpose.position.x = 0.0
+        self.wpose.position.y = -0.18
+        self.wpose.position.z = 0.15
+        self.waypoints.append(copy.deepcopy(self.wpose))
+        self.execute()
+
 
     def execute(self):
         # plan trajectory

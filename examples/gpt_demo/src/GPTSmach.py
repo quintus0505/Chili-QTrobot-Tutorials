@@ -23,7 +23,7 @@ import pandas as pd
 from datetime import datetime
 import sys
 
-TEST_WRITING = False
+TEST_WRITING = True
 Available_Letter = ['F', 'X', 'H', 'Q', 'S']
 TEST_LETTER = "S"
 
@@ -199,38 +199,45 @@ class WritingEnd(smach.State):
             userdata.GPTBot.talk(response)
             userdata.GPTBot.finish = False
             # listen to the children's answer
-            while not rospy.is_shutdown() and not userdata.GPTBot.finish:
-                print('waiting for the answer') 
-                try:
-                    start_time = time.time()   
-                    recognize_result = userdata.GPTBot.recognizeQuestion(language=userdata.GPTBot.defaultlanguage, options='', timeout=0)
-                    end_time = time.time()
-                    api_time = end_time - start_time
-                    if recognize_result:
-                        print("recognize_result: ", recognize_result)
-                        print("api_time: ", api_time, "input token num: ", len(recognize_result.transcript))
-                        userdata.GPTBot.google_speech_data.append((api_time, len(recognize_result.transcript)))
-                        break
-                    else:
-                        print("recognize_result is None")                        
-                    if not recognize_result or not recognize_result.transcript:
-                        # userdata.GPTBot.bored()
+            while not rospy.is_shutdown():
+                while not rospy.is_shutdown() and not userdata.GPTBot.finish:
+                    print('waiting for the answer') 
+                    try:
+                        start_time = time.time()   
+                        recognize_result = userdata.GPTBot.recognizeQuestion(language=userdata.GPTBot.defaultlanguage, options='', timeout=0)
+                        end_time = time.time()
+                        api_time = end_time - start_time
+                        if recognize_result:
+                            print("recognize_result: ", recognize_result)
+                            print("api_time: ", api_time, "input token num: ", len(recognize_result.transcript))
+                            userdata.GPTBot.google_speech_data.append((api_time, len(recognize_result.transcript)))
+                            break
+                        else:
+                            print("recognize_result is None")                        
+                        if not recognize_result or not recognize_result.transcript:
+                            # userdata.GPTBot.bored()
+                            continue
+                    except:
                         continue
-                except:
-                    continue
 
-            prompt = recognize_result.transcript
-            words = word_tokenize(prompt.lower())
+                prompt = recognize_result.transcript
+                words = word_tokenize(prompt.lower())
 
-            closing_words = ["bye","goodbye","stop", 'end']
-            if any(word in closing_words for word in words):
-                return 'goodbye'
-            else:
-                prompt = "Now the chidren want to learn another letter, you should say start with 'Great, Let us'"
-                response =  userdata.GPTBot.aimodel.generate(prompt)
-                print("response: ", response)
-                userdata.GPTBot.talk(response)
-                return 'writing_start'
+                closing_words = ["bye","goodbye","stop", 'end']
+                continue_words = ["continue", "another", "more", "next", "other"]
+                if any(word in closing_words for word in words):
+                    return 'goodbye'
+                elif any(word in continue_words for word in words):
+                    prompt = "Now the chidren want to learn another letter, you should say start with 'OK, Let us'"
+                    response =  userdata.GPTBot.aimodel.generate(prompt)
+                    print("response: ", response)
+                    userdata.GPTBot.talk(response)
+                    return 'writing_start'
+                else:
+                    prompt = "The speech to text response is: (" + prompt  + "), it is neither a closing word nor a continue word, you should ask again, explain your bad hearing and verify the answer by the children"
+                    response =  userdata.GPTBot.aimodel.generate(prompt)
+                    print("response: ", response)
+                    userdata.GPTBot.talk(response)
 
         else:
             if userdata.WrittingFlag == 0:
@@ -248,6 +255,7 @@ class Goodbye(smach.State):
                              output_keys=['GPTBot', 'Get_Name_Result', 'WrittingControl', 'Visualize', 'WrittingFlag','taught_letters'])
     def execute(self, userdata):
         rospy.loginfo("Executing state Goodbye")
+        userdata.WrittingControl.writting_end_arm()
         if not TEST_WRITING:
             prompt = "Now we are at the goodbye stage. We are using the google speech to text api to recognize the name of the people you are talking to, the result is" + userdata.Get_Name_Result + "If you get name, you should express your thanks\
             to the person you are talking to, if you cannot get the name, you can just say 'my friend' instead of the name. Please act like you are talking to a person rather than acting based on the command and express your thanks to the person you are talking to. and conclude today you taugh letters" + \

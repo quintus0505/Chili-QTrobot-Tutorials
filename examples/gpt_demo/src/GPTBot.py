@@ -66,10 +66,10 @@ class Synchronizer():
 class QTChatBot():
     """QTrobot talks with you via GPT3 and Google Speech"""
 
-    def __init__(self, log_data=False):
+    def __init__(self, log_api_test_data=False):
         nltk.download('vader_lexicon')
         self.model_engine = rospy.get_param("/gpt_demo/chatengine/engine", 'chatgpt')
-        self.log_data = log_data
+        self.log_api_test_data = log_api_test_data
         if self.model_engine == 'chatgpt':
             self.aimodel = aimodel.ChatGPT()
             self.google_speech_to_text_file = "chatgpt_google_speech_data.csv"
@@ -255,11 +255,13 @@ class QTChatBot():
         self.intro_sentences =  self.aimodel.generate("Who are you? (at this stage just introduce yourself, do not ask any questions and make in less than 40 words).")
         print("Intro: ",self.intro_sentences)
         self.talk(self.intro_sentences)
+        return self.intro_sentences
 
     def ask_name(self):
         response = self.aimodel.generate("Ask the name of the person you are talking to by 'What is your name?', you should not give out any additional words(like sure, absolutely e.g.).")
         print("Ask name: ",response)
         self.talk(response)
+        return response
 
     def explain_bad_hearing(self):
         self.emotion_pub.publish("QT/sad")    
@@ -268,6 +270,7 @@ class QTChatBot():
         response = self.aimodel.generate(prompt)
         print("Explain bad hearing: ",response)
         self.talk(response)
+        return response
 
     def start(self):
         # self.intro()
@@ -282,7 +285,7 @@ class QTChatBot():
                 if recognize_result:
                     print("recognize_result: ", recognize_result)
                     print("api_time: ", api_time, "input token num: ", len(recognize_result.transcript))
-                    if self.log_data:
+                    if self.log_api_test_data:
                         self.google_speech_data.append((api_time, len(recognize_result.transcript)))
                 else:
                     print("recognize_result is None")                        
@@ -319,7 +322,7 @@ class QTChatBot():
                 response = self.error_feedback
 
             self.speak(self.refine_sentence(response))
-            if self.log_data:
+            if self.log_api_test_data:
                 save_csv_file(self.google_speech_to_text_file, self.google_speech_data)
                 save_csv_file(self.openai_data_file, self.aimodel.openai_data)
             
@@ -327,7 +330,7 @@ class QTChatBot():
         # self.finish = False
 
 
-    def no_guesture_start(self, current_time=0):
+    def no_guesture_start(self):
         # self.intro()
         while not rospy.is_shutdown() and not self.finish:            
             print('listenting...') 
@@ -340,7 +343,7 @@ class QTChatBot():
                 if recognize_result:
                     print("recognize_result: ", recognize_result)
                     print("api_time: ", api_time, "input token num: ", len(recognize_result.transcript))
-                    if self.log_data:
+                    if self.log_api_test_data:
                         self.google_speech_data.append((api_time, len(recognize_result.transcript)))
                 else:
                     print("recognize_result is None")                        
@@ -360,7 +363,7 @@ class QTChatBot():
                 response = self.error_feedback
 
             self.no_guesture_speak(self.refine_sentence(response))
-            if self.log_data:
+            if self.log_api_test_data:
                 save_csv_file(self.google_speech_to_text_file, self.google_speech_data)
                 save_csv_file(self.openai_data_file, self.aimodel.openai_data)
             

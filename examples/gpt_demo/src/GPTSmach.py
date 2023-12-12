@@ -24,12 +24,13 @@ from datetime import datetime
 import sys
 from logger import Logger
 
-TEST_WRITING = True  # Flag to just test the writing part, no interaction with the children
+TEST_WRITING = False  # Flag to just test the writing part, no interaction with the child
+TEST_CONVERSATION = True  # Flag to just test the conversation part, no interaction with the child
 # Available_Letter = ['F', 'X', 'H', 'Q', 'S']
-Available_Letter = ['F', 'H', 'Q', 'S']
+Available_Letter = ['X', 'F', 'H', 'Q']
 TEST_LETTER = "F"
-WRITTING_REPEAT_TIMES = 2
-CONVERSATION_TIME = 120     # set the conversation time to 5 minutes
+WRITTING_REPEAT_TIMES = 1
+CONVERSATION_TIME = 30     # set the conversation time to 5 minutes
 ADDITIONAL_WRITING_TIME = 60  # set the additional writing time to 5 minutes
 
 class Greeting(smach.State):
@@ -107,14 +108,15 @@ class Conversation(smach.State):
                     continue
                 current_time = time.time()
                 used_time = current_time - conversation_start_time
+                print("used_time: ", used_time)
                 print('Human:', recognize_result.transcript)
                 userdata.logger.log_conversation(current_time, "Human", recognize_result.transcript)
                 prompt = recognize_result.transcript
                 words = word_tokenize(prompt.lower())
                 response = None
                 if used_time > CONVERSATION_TIME:
-                    prompt = "The children's latest response is: " + prompt + \
-                        "Now you should suggest to teach the children how to write letters, you should first response to the children and then start with 'Now let us start to write letters'"
+                    prompt = "The child's latest response is: " + prompt + \
+                        "Now you should suggest to teach the child how to write letters, you should first response to the child and then response with 'Now let us start to write letters'"
                 response = userdata.GPTBot.aimodel.generate(prompt)
 
                 if not response:
@@ -136,7 +138,7 @@ class Conversation(smach.State):
         
 class WritingLoop(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['aditional_writing_start'],
+        smach.State.__init__(self, outcomes=['additional_writing_start'],
                              input_keys=['GPTBot', 'Get_Name_Result', 'WritingControl', 'logger', 'WritingFlag'],
                              output_keys=['GPTBot', 'Get_Name_Result', 'WritingControl', 'logger', 'WritingFlag'])
     def execute(self, userdata):
@@ -144,7 +146,7 @@ class WritingLoop(smach.State):
         writing_loop_start_time = time.time()
         userdata.logger.log_state_time("WritingLoop", writing_loop_start_time)
         if not TEST_WRITING:
-            prompt = "Now we are going to teach the children how to write letters in " + str(Available_Letter) + "You are going to teach all of them You should start with 'Now let us start' and introducing what you are going to teach, limit in 40 words"
+            prompt = "Now you are ready to teach the child how to write these letters: " + str(Available_Letter) + "You are going to teach all of them You should start with 'We will be focusing ' and introducing what you are going to teach, limit in 40 words"
             response =  userdata.GPTBot.aimodel.generate(prompt)
             print("response: ", response)
             userdata.GPTBot.talk(response)
@@ -153,40 +155,45 @@ class WritingLoop(smach.State):
             userdata.GPTBot.talk("Writing Loop")
             userdata.logger.log_conversation(time.time(), "QTrobot", "Writing Loop")
 
-
-        for letter in Available_Letter:
-            userdata.GPTBot.talk("Here is the letter " + letter)
-            userdata.logger.log_conversation(time.time(), "QTrobot", "Here is the letter " + letter)
-            if not TEST_WRITING:
-                for i in range(WRITTING_REPEAT_TIMES):
+        if not TEST_CONVERSATION:
+            for letter in Available_Letter:
+                userdata.GPTBot.talk("Here is the letter " + letter)
+                userdata.logger.log_conversation(time.time(), "QTrobot", "Here is the letter " + letter)
+                if not TEST_WRITING:
+                    for i in range(WRITTING_REPEAT_TIMES):
+                        userdata.WritingControl.writing_prepare_arm()
+                        userdata.WritingControl.writing_execution(letter=letter)
+                else:
                     userdata.WritingControl.writing_prepare_arm()
                     userdata.WritingControl.writing_execution(letter=letter)
-            else:
-                userdata.WritingControl.writing_prepare_arm()
-                userdata.WritingControl.writing_execution(letter=letter)
-        return 'aditional_writing_start'
+        return 'additional_writing_start'
         
     
-class AditionalWritingStart(smach.State):
+class AdditionalWritingStart(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['additional_writing'],
-                             input_keys=['GPTBot', 'Get_Name_Result', 'WritingControl', 'logger', 'WritingFlag', 'target_letter', 'teaching_times', 'taught_letters', 'additional_writing_start_time'],
-                             output_keys=['GPTBot', 'Get_Name_Result', 'WritingControl', 'logger', 'WritingFlag', 'target_letter', 'teaching_times', 'taught_letters', 'additional_writing_start_time'])
+        smach.State.__init__(self, outcomes=['additional_writing', 'goodbye'],
+                             input_keys=['GPTBot', 'Get_Name_Result', 'WritingControl', 'logger', 'WritingFlag', 'target_letter', 'teaching_times', 'taught_letters', 'additional_writing_start_time', 'writting_loop_end'],
+                             output_keys=['GPTBot', 'Get_Name_Result', 'WritingControl', 'logger', 'WritingFlag', 'target_letter', 'teaching_times', 'taught_letters', 'additional_writing_start_time', 'writting_loop_end'])
     def execute(self, userdata):
-        rospy.loginfo("Executing state AditionalWritingStart")
-        aditional_writing_start_time = time.time()
-        userdata.additional_writing_start_time = aditional_writing_start_time
-        userdata.logger.log_state_time("AditionalWritingStart", aditional_writing_start_time)
+        rospy.loginfo("Executing state AdditionalWritingStart")
+        additional_writing_start_time = time.time()
+        userdata.logger.log_state_time("AdditionalWritingStart", additional_writing_start_time)
         # userdata.GPTBot.talk("Writing Start")
         if not TEST_WRITING:
-            prompt = "Now teach the children how to write letters in" + str(userdata.teaching_times) + \
-            " .You should ask which letter the children want to learn again in " + str(userdata.teaching_times) +  "by saying 'Which letter'"
-            response =  userdata.GPTBot.aimodel.generate(prompt)
-
+            if not userdata.writting_loop_end:
+                prompt = "Now you have taught the child how to write letters in" + str(Available_Letter) + \
+                " However, the childern need for review and consolidation. You should first conclude what you taught and the reason for teaching again, then ask which letter the child want to learn again by saying 'Which letter'"
+                response =  userdata.GPTBot.aimodel.generate(prompt)
+                userdata.writting_loop_end = True
+            else:
+                prompt = "Now you have taught the child how to write letters in" + str(Available_Letter) + \
+                "You should ask the  'Which letter'"
+                response =  userdata.GPTBot.aimodel.generate(prompt)
+            userdata.additional_writing_start_time = time.time()
             print("response: ", response)
             userdata.GPTBot.talk(response)
             userdata.logger.log_conversation(time.time(), "QTrobot", response)
-            # listen to the children's answer
+            # listen to the child's answer
             userdata.GPTBot.finish = False
             while not rospy.is_shutdown() and not userdata.GPTBot.finish:
                 print('waiting for the letter') 
@@ -207,12 +214,13 @@ class AditionalWritingStart(smach.State):
                         continue
                 except:
                     continue
-
                 print('Human:', recognize_result.transcript)
                 prompt = recognize_result.transcript
                 # userdata.GPTBot.show_sentiment(userdata.GPTBot.get_sentiment(prompt))
                 words = word_tokenize(prompt.lower())
                 print("words: ", words)
+
+                closing_words = ["bye","goodbye","stop", 'end']
                 # if any of the letter in Available_Letter appears in the words, no matter upper or lower case, we will take it as the target letter
                 if any(word in Available_Letter for word in words) or any(word in [letter.lower() for letter in Available_Letter] for word in words):
                     for word in words:
@@ -222,10 +230,22 @@ class AditionalWritingStart(smach.State):
                         elif word in [letter.lower() for letter in Available_Letter]:
                             userdata.target_letter = word.upper()
                             break
+                used_time = time.time() - additional_writing_start_time
+                print("used_time: ", used_time)
+                if any(word in closing_words for word in words) or used_time > ADDITIONAL_WRITING_TIME:
+                    if any(word in closing_words for word in words):
+                        prompt = "The child want to stop now, express your slight regret only"
+                    else: # running out of time
+                        prompt = "Now you should conclude today you taugh letters" + str(Available_Letter) + "Please only make conclusion at this stage stated with 'Sorry, now is time for stop, we have learned' and ended with 'I am sure you have learned a lot'"
+                    response =  userdata.GPTBot.aimodel.generate(prompt)
+                    print("response: ", response)
+                    userdata.GPTBot.talk(response)
+                    userdata.logger.log_conversation(time.time(), "QTrobot", response)
+                    return 'goodbye'
 
                 response = None
                 input_prompt = "The speech to text response is: (" + prompt  + ") Your task in this state is to get the letter which is available in" + str(Available_Letter) + \
-                "If you get the letter, you should say 'Great, Let us start to write the letter', or you should ask again, explain your bad hearing and verify the answer by the children"
+                "If you get the letter, you should say 'Great, Let us start to write the letter', or you should ask again, explain your bad hearing and verify the answer by the child"
 
                 #     response = results[0]   
                 response =  userdata.GPTBot.aimodel.generate(input_prompt)
@@ -236,23 +256,25 @@ class AditionalWritingStart(smach.State):
                     break
                 userdata.GPTBot.talk(userdata.GPTBot.refine_sentence(response))
                 userdata.logger.log_conversation(time.time(), "QTrobot", response)
+
+
         else:
-            userdata.GPTBot.talk("Aditional Writing Start")
-            userdata.logger.log_conversation(time.time(), "QTrobot", "Aditional Writing Start")
+            userdata.GPTBot.talk("Additional Writing Start")
+            userdata.logger.log_conversation(time.time(), "QTrobot", "Additional Writing Start")
         userdata.teaching_times+=1
-        userdata.WritingFlag = 2
+        userdata.WritingFlag = WRITTING_REPEAT_TIMES
         return 'additional_writing'
 
 
-class AditionalWriting(smach.State):
+class AdditionalWriting(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['additional_writing_end', "additional_writing"],
                              input_keys=['GPTBot', 'Get_Name_Result', 'WritingControl', 'logger', 'WritingFlag', 'target_letter', 'teaching_times', 'taught_letters'],
                              output_keys=['GPTBot', 'Get_Name_Result', 'WritingControl', 'logger', 'WritingFlag', 'target_letter', 'teaching_times', 'taught_letters'])
     def execute(self, userdata):
-        rospy.loginfo("Executing state AditionalWriting")
-        aditional_writing_time = time.time()
-        userdata.logger.log_state_time("AditionalWriting", aditional_writing_time)
+        rospy.loginfo("Executing state AdditionalWriting")
+        additional_writing_time = time.time()
+        userdata.logger.log_state_time("AdditionalWriting", additional_writing_time)
         if TEST_WRITING:
             userdata.target_letter = TEST_LETTER
 
@@ -271,20 +293,22 @@ class AditionalWriting(smach.State):
         else:
             return 'additional_writing'
         
-class AditionalWritingEnd(smach.State):
+class AdditionalWritingEnd(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['goodbye', 'additional_writing_start'],
                              input_keys=['GPTBot', 'Get_Name_Result', 'WritingControl', 'logger', 'WritingFlag', 'target_letter', 'teaching_times', 'taught_letters', 'additional_writing_start_time'],
                              output_keys=['GPTBot', 'Get_Name_Result', 'WritingControl', 'logger', 'WritingFlag', 'target_letter', 'teaching_times', 'taught_letters', 'additional_writing_start_time'])
         
     def execute(self, userdata):
-        rospy.loginfo("Executing state AditionalWritingEnd")
-        aditional_writing_end_time = time.time()
-        userdata.logger.log_state_time("AditionalWritingEnd", aditional_writing_end_time)
+        rospy.loginfo("Executing state AdditionalWritingEnd")
+        additional_writing_end_time = time.time()
+        userdata.logger.log_state_time("AdditionalWritingEnd", additional_writing_end_time)
         userdata.target_letter = None
 
         if not TEST_WRITING:
-            if userdata.additional_writing_start_time - aditional_writing_end_time > ADDITIONAL_WRITING_TIME:
+            used_time = additional_writing_end_time - userdata.additional_writing_start_time
+            print("used_time for adi: ", used_time)
+            if used_time > ADDITIONAL_WRITING_TIME:
                 prompt = "Now you should conclude today you taugh letters" + str(Available_Letter) + "Please only make conclusion at this stage stated with 'Now is time for stop, we have learned' and ended with 'I am sure you have learned a lot'"
                 response =  userdata.GPTBot.aimodel.generate(prompt)
                 print("response: ", response)
@@ -292,13 +316,13 @@ class AditionalWritingEnd(smach.State):
                 userdata.logger.log_conversation(time.time(), "QTrobot", response)
                 return 'goodbye'
             else:
-                prompt = "Now you have written the letter. Keep the response short and simple, you should ask the children if they want to learn another letter again or stop for today, please start with 'Cheers, ' or 'Great, '."
+                prompt = "Now you have written the letter. Keep the response short and simple, you should ask the child if they want to learn another letter again or stop for today, please start with 'Cheers, ' or 'Great, '."
                 response =  userdata.GPTBot.aimodel.generate(prompt)
                 print("response: ", response)
                 userdata.GPTBot.talk(response)
                 userdata.logger.log_conversation(time.time(), "QTrobot", response)
                 userdata.GPTBot.finish = False
-                # listen to the children's answer
+                # listen to the child's answer
                 while not rospy.is_shutdown():
                     while not rospy.is_shutdown() and not userdata.GPTBot.finish:
                         print('waiting for the answer') 
@@ -320,12 +344,13 @@ class AditionalWritingEnd(smach.State):
                                 continue
                         except:
                             continue
-
+                    used_time = time.time() - additional_writing_end_time
+                    print("used_time: ", used_time)
                     prompt = recognize_result.transcript
                     words = word_tokenize(prompt.lower())
 
                     closing_words = ["bye","goodbye","stop", 'end']
-                    continue_words = ["continue", "another", "more", "next", "other"]
+                    continue_words = ["continue", "another", "more", "next", "other"] + Available_Letter
                     if any(word in closing_words for word in words):
                         return 'goodbye'
                     elif any(word in continue_words for word in words):
@@ -336,7 +361,7 @@ class AditionalWritingEnd(smach.State):
                         userdata.logger.log_conversation(time.time(), "QTrobot", response)
                         return 'additional_writing_start'
                     else:
-                        prompt = "The speech to text response is: (" + prompt  + "), it is neither a closing word nor a continue word, you should ask again, explain your bad hearing and verify the answer by the children"
+                        prompt = "The speech to text response is: (" + prompt  + "), it is neither a closing word nor a continue word, you should ask again, explain your bad hearing and verify the answer by the child"
                         response =  userdata.GPTBot.aimodel.generate(prompt)
                         print("response: ", response)
                         userdata.GPTBot.talk(response)
@@ -344,8 +369,8 @@ class AditionalWritingEnd(smach.State):
 
         else:
             if userdata.WritingFlag == 0:
-                userdata.GPTBot.talk("Aditional Writing End")
-                userdata.logger.log_conversation(time.time(), "QTrobot", "Aditional Writing End")
+                userdata.GPTBot.talk("Additional Writing End")
+                userdata.logger.log_conversation(time.time(), "QTrobot", "Additional Writing End")
                 return 'goodbye'
             else:
                 return 'additional_writing_start'
@@ -389,6 +414,7 @@ class GPTSmachManager():
         self.sm.userdata.writing_control = Writing_Control()
         self.sm.userdata.writing_flag = 2
         self.sm.userdata.target_letter = None
+        self.sm.userdata.writting_loop_end = False
         self.sm.userdata.teaching_times = 0
         self.sm.userdata.taught_letters = []
         self.sm.userdata.logger = Logger()
@@ -410,16 +436,16 @@ class GPTSmachManager():
                                 transitions={'end':'end'},
                                 remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WritingControl':'writing_control', 'WritingFlag':'writing_flag'})
             smach.StateMachine.add('WRITING_LOOP', WritingLoop(),
-                                transitions={'aditional_writing_start':'ADITIONAL_WRITING_START'},
+                                transitions={'additional_writing_start':'ADDITIONAL_WRITING_START'},
                                 remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WritingControl':'writing_control', 'WritingFlag':'writing_flag'})
-            smach.StateMachine.add('ADITIONAL_WRITING_START', AditionalWritingStart(),
-                                transitions={'additional_writing':'ADITIONAL_WRITING'},
+            smach.StateMachine.add('ADDITIONAL_WRITING_START', AdditionalWritingStart(),
+                                transitions={'additional_writing':'ADDITIONAL_WRITING', 'goodbye':'GOODBYE'},
                                 remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WritingControl':'writing_control', 'WritingFlag':'writing_flag'})
-            smach.StateMachine.add('ADITIONAL_WRITING', AditionalWriting(),    
-                                transitions={'additional_writing_end':'ADITIONAL_WRITING_END', 'additional_writing':'ADITIONAL_WRITING'},
+            smach.StateMachine.add('ADDITIONAL_WRITING', AdditionalWriting(),    
+                                transitions={'additional_writing_end':'ADDITIONAL_WRITING_END', 'additional_writing':'ADDITIONAL_WRITING'},
                                 remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WritingControl':'writing_control', 'WritingFlag':'writing_flag'})
-            smach.StateMachine.add('ADITIONAL_WRITING_END', AditionalWritingEnd(),
-                                transitions={'goodbye':'GOODBYE', 'additional_writing_start':'ADITIONAL_WRITING_START'},
+            smach.StateMachine.add('ADDITIONAL_WRITING_END', AdditionalWritingEnd(),
+                                transitions={'goodbye':'GOODBYE', 'additional_writing_start':'ADDITIONAL_WRITING_START'},
                                 remapping={'GPTBot':'gpt_bot', 'Get_Name_Result':'get_name_result', 'WritingControl':'writing_control', 'WritingFlag':'writing_flag'})
             
 

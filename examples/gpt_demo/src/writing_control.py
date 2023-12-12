@@ -367,7 +367,7 @@ class Writing_Control():
         self.wpose = self.group.get_current_pose().pose
 
         # Tail starting point (bottom right of the octagon)
-        self.wpose.position.x += segment_length * 1.5
+        self.wpose.position.x += segment_length * 1.25
 
         self.pen_up()
         self.waypoints.append(copy.deepcopy(self.wpose))

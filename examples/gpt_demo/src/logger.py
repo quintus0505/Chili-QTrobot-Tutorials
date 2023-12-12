@@ -42,22 +42,25 @@ class Logger:
             for entry in data:
                 writer.writerow(entry)
 
-# Example usage
-logger = Logger()
 
-# Logging states with their start time
-greeting_start_time = time.time()
-logger.log_state_time("Greeting", greeting_start_time)
+if __name__ == "__main__":
 
-conversation_start_time = time.time()
-logger.log_state_time("Conversation", conversation_start_time)
+    # Example usage
+    logger = Logger()
 
-# Save state log to a CSV file
-logger.save_state_time_to_csv()
+    # Logging states with their start time
+    greeting_start_time = time.time()
+    logger.log_state_time("Greeting", greeting_start_time)
 
-# Logging conversation
-logger.log_conversation(time.time(), "User", "Hello, robot!")
-logger.log_conversation(time.time(), "Robot", "Hello, human!")
+    conversation_start_time = time.time()
+    logger.log_state_time("Conversation", conversation_start_time)
 
-# Save conversation log to a CSV file
-logger.save_conversation_to_csv()
+    # Save state log to a CSV file
+    logger.save_state_time_to_csv()
+
+    # Logging conversation
+    logger.log_conversation(time.time(), "User", "Hello, robot!")
+    logger.log_conversation(time.time(), "Robot", "Hello, human!")
+
+    # Save conversation log to a CSV file
+    logger.save_conversation_to_csv()

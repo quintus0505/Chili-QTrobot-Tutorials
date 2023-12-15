@@ -15,6 +15,7 @@ import time
 TABLE_HEIGH = 0.35
 PEN_RISE = 0.04
 
+
 class Writing_Control():
     def __init__(self):
         self.eef_step = 0.00015
@@ -109,7 +110,21 @@ class Writing_Control():
     def write_letter_F(self):
         vertical_line_length = 0.05
         horizontal_line_length = 0.028
-        middle_line_offset = vertical_line_length / 5
+        middle_line_offset = vertical_line_length / 4
+
+        # Move to initial position
+        self.waypoints.clear()
+        self.wpose = self.group.get_current_pose().pose
+        self.waypoints.append(copy.deepcopy(self.wpose))
+
+        self.wpose.position.x += 0.055
+        self.wpose.position.y += 0.03
+
+        self.waypoints.append(copy.deepcopy(self.wpose))
+
+        self.publish_signal("pen_up")
+        self.execute()
+        self.publish_signal("pen_down")      
 
         # generate waypoints
         self.waypoints.clear()
@@ -117,7 +132,7 @@ class Writing_Control():
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         # Draw the vertical line down
-        self.wpose.position.y += vertical_line_length
+        self.wpose.position.x -= vertical_line_length
         self.waypoints.append(copy.deepcopy(self.wpose))
         
         self.execute()
@@ -129,7 +144,7 @@ class Writing_Control():
 
         # Move back to top
         self.pen_up()
-        self.wpose.position.y -= vertical_line_length
+        self.wpose.position.x += vertical_line_length
         self.waypoints.append(copy.deepcopy(self.wpose))
         self.pen_down()
 
@@ -142,7 +157,8 @@ class Writing_Control():
         self.wpose = self.group.get_current_pose().pose
         self.waypoints.append(copy.deepcopy(self.wpose))
 
-        self.wpose.position.x += horizontal_line_length
+        self.wpose.position.y -= horizontal_line_length
+        self.wpose.position.z += 0.003
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         self.execute()
@@ -154,8 +170,8 @@ class Writing_Control():
         self.waypoints.append(copy.deepcopy(self.wpose))
         
         self.pen_up()
-        self.wpose.position.y += middle_line_offset
-        self.wpose.position.x -= horizontal_line_length
+        self.wpose.position.x -= middle_line_offset
+        self.wpose.position.y += horizontal_line_length - 0.005
         self.waypoints.append(copy.deepcopy(self.wpose))
         self.pen_down()
         self.publish_signal("pen_up")
@@ -167,7 +183,7 @@ class Writing_Control():
         self.wpose = self.group.get_current_pose().pose
         self.waypoints.append(copy.deepcopy(self.wpose))
 
-        self.wpose.position.x += horizontal_line_length  # Draw line
+        self.wpose.position.y -= horizontal_line_length  # Draw line
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         self.execute()
@@ -326,7 +342,7 @@ class Writing_Control():
         start_x = self.group.get_current_pose().pose.position.x
         start_y = self.group.get_current_pose().pose.position.y
 
-        # First vertical line (top to bottom)
+        # Move to initial position
         self.waypoints.clear()
         self.wpose = self.group.get_current_pose().pose
         self.waypoints.append(copy.deepcopy(self.wpose))
@@ -484,6 +500,8 @@ class Writing_Control():
         print("done")
 
     def write_letter_S(self):
+        # Abandoned
+
         # Define the dimensions for the segments
         segment_length = 0.025  # Length of each segment
         horizontal_segment_length = 0.015
@@ -598,8 +616,8 @@ class Writing_Control():
             self.write_letter_H()
         elif letter == 'Q':
             self.write_letter_Q()
-        elif letter == 'S':
-            self.write_letter_S()
+        # elif letter == 'S':
+        #     self.write_letter_S()
         elif letter == 'R':
             self.write_letter_R()
         else:
@@ -617,6 +635,6 @@ if __name__ == "__main__":
     control = Writing_Control()
     control.publish_signal("clear_trajectory")
     control.writing_prepare_arm()
-    control.writing_execution('H')
+    control.writing_execution('F')
     # control.writing_test()
     

@@ -70,6 +70,9 @@ class Writing_Control():
         elif signal == "pen_down":
             print("publishing pen_down")
             self.signal_publisher.publish(3)
+        elif signal == "clear_trajectory":
+            print("publishing clear_trajectory")
+            self.signal_publisher.publish(4)
 
     def writing_prepare_arm(self):
         self.group.set_start_state_to_current_state()
@@ -90,6 +93,18 @@ class Writing_Control():
         # move to pen up position
         self.wpose.position.z = TABLE_HEIGH + PEN_RISE
         self.waypoints.append(copy.deepcopy(self.wpose))
+
+    def writing_test(self):
+        # generate waypoints
+        self.waypoints.clear()
+        self.wpose = self.group.get_current_pose().pose
+        self.waypoints.append(copy.deepcopy(self.wpose))
+
+        self.wpose.position.x += 0.1
+        self.waypoints.append(copy.deepcopy(self.wpose))
+        
+        self.execute()
+
 
     def write_letter_F(self):
         vertical_line_length = 0.05
@@ -161,7 +176,7 @@ class Writing_Control():
 
     def write_letter_X(self):
         horizontal_length = 0.03  # Horizontal length for the X
-        vertical_length = 0.05    # Vertical length for the X
+        vertical_length = 0.05  # Vertical length for the X
 
         # Starting position for the first diagonal (top left corner)
         start_x = self.group.get_current_pose().pose.position.x
@@ -173,11 +188,23 @@ class Writing_Control():
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         # Calculate the change in x and y for the diagonal line
-
+        self.pen_up()
         self.wpose.position.x += horizontal_length
         self.wpose.position.y += vertical_length
         self.waypoints.append(copy.deepcopy(self.wpose))
+        self.pen_down()
 
+        self.publish_signal("pen_up")
+        self.execute()
+        self.publish_signal("pen_down")
+
+        self.waypoints.clear()
+        self.wpose = self.group.get_current_pose().pose
+        self.waypoints.append(copy.deepcopy(self.wpose))
+
+        self.wpose.position.x -= horizontal_length
+        self.wpose.position.y -= vertical_length
+        self.waypoints.append(copy.deepcopy(self.wpose))
         self.execute()
 
         # Move to starting position for the second diagonal (top right corner)
@@ -186,8 +213,8 @@ class Writing_Control():
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         self.pen_up()
-        self.wpose.position.x = start_x + horizontal_length
-        self.wpose.position.y = start_y
+        self.wpose.position.x = start_x
+        self.wpose.position.y = start_y + vertical_length + 0.02
         self.waypoints.append(copy.deepcopy(self.wpose))
         self.pen_down()
 
@@ -200,13 +227,86 @@ class Writing_Control():
         self.wpose = self.group.get_current_pose().pose
         self.waypoints.append(copy.deepcopy(self.wpose))
 
-        self.wpose.position.x -= horizontal_length
-        self.wpose.position.y += vertical_length
+        self.wpose.position.x += horizontal_length
+        self.wpose.position.y -= vertical_length
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         self.execute()
 
         print("done")
+
+    def write_letter_R(self):
+        vertical_length = 0.05  # Vertical length for the R
+        segment_length = 0.025  # Horizontal length for the R
+        tail_length = 0.025  # Length of the tail for the R
+
+        # Starting position for the first vertical line (top left corner)
+        start_x = self.group.get_current_pose().pose.position.x
+        start_y = self.group.get_current_pose().pose.position.y
+
+        # First vertical line (top to bottom)
+        self.waypoints.clear()
+        self.wpose = self.group.get_current_pose().pose
+        self.waypoints.append(copy.deepcopy(self.wpose))
+
+        self.wpose.position.y += vertical_length
+        self.waypoints.append(copy.deepcopy(self.wpose))
+
+        self.execute()
+
+        # Move to the start of curve
+        self.waypoints.clear()
+        self.wpose = self.group.get_current_pose().pose
+        self.waypoints.append(copy.deepcopy(self.wpose))
+
+        self.pen_up()
+        self.wpose.position.y = start_y - 0.005
+        self.waypoints.append(copy.deepcopy(self.wpose))
+        self.pen_down()
+
+        self.publish_signal("pen_up")
+        self.execute()
+        self.publish_signal("pen_down")
+
+        # Draw the curve
+        self.waypoints.clear()
+        self.wpose = self.group.get_current_pose().pose
+        self.waypoints.append(copy.deepcopy(self.wpose))
+
+
+        # Middle horizontal segment (moving right)
+        self.wpose.position.x += segment_length * 2 / 3
+        self.waypoints.append(copy.deepcopy(self.wpose))
+
+        # Bottom left diagonal down segment
+        self.wpose.position.x += segment_length / 3
+        self.wpose.position.y += segment_length / 3
+        self.waypoints.append(copy.deepcopy(self.wpose))
+        self.wpose.position.y += segment_length / 3
+        self.waypoints.append(copy.deepcopy(self.wpose))
+        self.wpose.position.x -= segment_length / 3
+        self.wpose.position.y += segment_length / 3
+        self.waypoints.append(copy.deepcopy(self.wpose))
+
+        # Bottom horizontal segment (moving left)
+        self.wpose.position.x -= segment_length * 2 / 3
+        self.waypoints.append(copy.deepcopy(self.wpose))
+
+        self.wpose.position.y -= 0.005
+        self.waypoints.append(copy.deepcopy(self.wpose))
+
+        # draw tail
+        self.wpose.position.x += tail_length + 0.005
+        self.wpose.position.y += tail_length + 0.005
+        self.waypoints.append(copy.deepcopy(self.wpose))
+
+        self.wpose.position.x += tail_length / 3
+        self.waypoints.append(copy.deepcopy(self.wpose))
+
+        # Plan and execute the trajectory for 'R'
+        self.execute()
+
+
 
     def write_letter_H(self):
         vertical_length = 0.05  # Vertical length for the H
@@ -454,7 +554,7 @@ class Writing_Control():
         
         # execute the plan
         self.group.execute(self.plan, True)
-    def writing_execution(self, letter='Q'):
+    def writing_execution(self, letter='H'):
 
         # generate waypoints
         waypoints = []
@@ -474,6 +574,8 @@ class Writing_Control():
             self.write_letter_Q()
         elif letter == 'S':
             self.write_letter_S()
+        elif letter == 'R':
+            self.write_letter_R()
         else:
             print("Invalid letter")
         # self.write_letter_F()
@@ -487,4 +589,8 @@ class Writing_Control():
 if __name__ == "__main__":
     print("writing control test")
     control = Writing_Control()
+    control.publish_signal("clear_trajectory")
     control.writing_prepare_arm()
+    control.writing_execution('X')
+    # control.writing_test()
+    

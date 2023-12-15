@@ -24,14 +24,14 @@ from datetime import datetime
 import sys
 from logger import Logger
 
-TEST_WRITING = False  # Flag to just test the writing part, no interaction with the child
-TEST_CONVERSATION = True  # Flag to just test the conversation part, no interaction with the child
-# Available_Letter = ['F', 'X', 'H', 'Q', 'S']
-Available_Letter = ['X', 'F', 'H', 'Q']
-TEST_LETTER = "F"
-WRITTING_REPEAT_TIMES = 1
-CONVERSATION_TIME = 30     # set the conversation time to 5 minutes
-ADDITIONAL_WRITING_TIME = 60  # set the additional writing time to 5 minutes
+TEST_WRITING = True  # Flag to just test the writing part, no interaction with the child
+TEST_CONVERSATION = False  # Flag to just test the conversation part, skip the writing part
+# Available_Letter = ['F', 'X', 'H', 'Q', 'S', 'R']
+Available_Letter = ['X', 'F', 'H', 'Q', 'R']
+TEST_LETTER = "R"  # Used for TEST_WRITING
+WRITTING_REPEAT_TIMES = 1   # Repeat times for writing the same letter
+CONVERSATION_TIME = 60     # set the conversation time
+ADDITIONAL_WRITING_TIME = 90  # set the additional writing time
 
 class Greeting(smach.State):
     def __init__(self):
@@ -93,6 +93,7 @@ class Conversation(smach.State):
         rospy.loginfo("Executing state Conversation")
         conversation_start_time = time.time() 
         userdata.logger.log_state_time("Conversation", conversation_start_time)
+        writing_start_flag = False
         if not TEST_WRITING:
             while not rospy.is_shutdown() and not userdata.GPTBot.finish:         
                 print('listenting...') 
@@ -114,9 +115,10 @@ class Conversation(smach.State):
                 prompt = recognize_result.transcript
                 words = word_tokenize(prompt.lower())
                 response = None
-                if used_time > CONVERSATION_TIME:
+                if used_time > CONVERSATION_TIME - 5:
                     prompt = "The child's latest response is: " + prompt + \
-                        "Now you should suggest to teach the child how to write letters, you should first response to the child and then response with 'Now let us start to write letters'"
+                        "Now you should suggest to teach the child how to write letters, you should first response to the child's latest response started with 'Hmm,' or 'Ah,' and then response with 'Now let us start to write letters'"
+                    writing_start_flag = True
                 response = userdata.GPTBot.aimodel.generate(prompt)
 
                 if not response:
@@ -127,10 +129,12 @@ class Conversation(smach.State):
                 userdata.GPTBot.no_guesture_speak(refined_response)
 
             # userdata.GPTBot.no_guesture_start()
-            if userdata.GPTBot.finish and userdata.GPTBot.start_writing:
+            # if userdata.GPTBot.finish and userdata.GPTBot.start_writing:
+            #     return 'writing_loop'
+            if writing_start_flag:
                 return 'writing_loop'
-            elif userdata.GPTBot.finish:
-                return 'goodbye'
+            # elif userdata.GPTBot.finish:
+            #     return 'goodbye'
         else:
             userdata.GPTBot.talk("Conversation")
             userdata.logger.log_conversation(time.time(), "QTrobot", "Conversation")
@@ -182,7 +186,7 @@ class AdditionalWritingStart(smach.State):
         if not TEST_WRITING:
             if not userdata.writting_loop_end:
                 prompt = "Now you have taught the child how to write letters in" + str(Available_Letter) + \
-                " However, the childern need for review and consolidation. You should first conclude what you taught and the reason for teaching again, then ask which letter the child want to learn again by saying 'Which letter'"
+                " However, the childern need for review and consolidation. You should first conclude what you taught and the reason for teaching again started with 'Now we' then ask which letter the child want to learn again by saying 'Which letter'"
                 response =  userdata.GPTBot.aimodel.generate(prompt)
                 userdata.writting_loop_end = True
             else:
@@ -282,8 +286,9 @@ class AdditionalWriting(smach.State):
         userdata.logger.log_conversation(time.time(), "QTrobot", "Here is the letter you want to learn")
         #TODO: write the letter 
         userdata.WritingFlag -= 1
-        userdata.WritingControl.writing_prepare_arm()
-        userdata.WritingControl.writing_execution(letter=userdata.target_letter)
+        if not TEST_CONVERSATION:
+            userdata.WritingControl.writing_prepare_arm()
+            userdata.WritingControl.writing_execution(letter=userdata.target_letter)
         
         if userdata.WritingFlag == 0:
             userdata.GPTBot.talk("I finished writing")
@@ -344,8 +349,17 @@ class AdditionalWritingEnd(smach.State):
                                 continue
                         except:
                             continue
-                    used_time = time.time() - additional_writing_end_time
+                    used_time = time.time() - userdata.additional_writing_start_time
                     print("used_time: ", used_time)
+
+                    if used_time > ADDITIONAL_WRITING_TIME:
+                        prompt = "Now you should conclude today you taugh letters" + str(Available_Letter) + "Please only make conclusion at this stage stated with 'Now is time for stop, we have learned' and ended with 'I am sure you have learned a lot'"
+                        response =  userdata.GPTBot.aimodel.generate(prompt)
+                        print("response: ", response)
+                        userdata.GPTBot.talk(response)
+                        userdata.logger.log_conversation(time.time(), "QTrobot", response)
+                        return 'goodbye'
+
                     prompt = recognize_result.transcript
                     words = word_tokenize(prompt.lower())
 
@@ -422,6 +436,7 @@ class GPTSmachManager():
 
         now = datetime.now()
         dt_string = now.strftime("%d-%m-%Y_%H-%M-%S")
+        self.sm.userdata.writing_control.publish_signal("clear_trajectory")
 
         # Open the container
         with self.sm:
@@ -466,3 +481,7 @@ if __name__ == "__main__":
         pass
     except KeyboardInterrupt:
         print("Ctrl+C pressed. Shutting down...")
+
+
+# interview questions
+        

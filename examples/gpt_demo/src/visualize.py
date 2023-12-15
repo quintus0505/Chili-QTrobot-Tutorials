@@ -11,7 +11,7 @@ from geometry_msgs.msg import PoseStamped
 import time
 from std_msgs.msg import Bool, Int32
 import threading
-from writting_control import PEN_RISE, TABLE_HEIGH
+from writing_control import PEN_RISE, TABLE_HEIGH
 import numpy as np
 # import moveit_msgs.msg
 # import geometry_msgs.msg
@@ -74,8 +74,8 @@ class Visualize:
         self.xy_positions = []
 
         self.smooth_factor = 0.1  # Adjust this value to control the smoothing level
-        self.hight = 900
-        self.width = 1200
+        self.hight = 1000
+        self.width = 1600
         # Initialize the Pygame
         pygame.init()
         # Set up the display
@@ -107,6 +107,9 @@ class Visualize:
         elif msg.data==3:
             print("Received signal pen down")
             self.pen_up = False
+        elif msg.data==4:
+            print("Received signal to clean the screen")
+            self.clear_trajectory()
 
     def main_loop(self):
         self.finish_signal = False  # Reset the finish signal
@@ -152,7 +155,7 @@ class Visualize:
                     self.screen.fill(WHITE)
                     # Draw the trajectory in black
                     for i in range(1, len(self.xy_positions)):
-                        if np.linalg.norm(np.array(self.xy_positions[i]) - np.array(self.xy_positions[i - 1])) < 50:
+                        if np.linalg.norm(np.array(self.xy_positions[i]) - np.array(self.xy_positions[i - 1])) < 45:
                             pygame.draw.line(self.screen, BLACK, self.xy_positions[i - 1], self.xy_positions[i], 8)
 
                     # Draw the current XY position in red
@@ -162,13 +165,14 @@ class Visualize:
                     pygame.display.flip()
                     self.clock.tick(45)
         except Exception as e:
-            print(f"Exception occurred: {e}")
-            # Graceful exit
-            rospy.signal_shutdown("Shutting down")
+            rospy.logerr(f"Exception occurred in main_loop: {e}")
+        finally:
+            # Ensuring resources are cleaned up properly
+            rospy.signal_shutdown("Shutting down due to exception in main_loop")
             self.ros_thread.join()
-            print("Done")
             pygame.quit()
             sys.exit()
+
 
 
     def start_drawing_callback(self, msg):

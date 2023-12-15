@@ -240,7 +240,6 @@ class Writing_Control():
         start_x = self.group.get_current_pose().pose.position.x
         start_y = self.group.get_current_pose().pose.position.y
 
-        # First vertical line (top to bottom)
         self.waypoints.clear()
         self.wpose = self.group.get_current_pose().pose
         self.waypoints.append(copy.deepcopy(self.wpose))
@@ -332,7 +331,21 @@ class Writing_Control():
         self.wpose = self.group.get_current_pose().pose
         self.waypoints.append(copy.deepcopy(self.wpose))
 
-        self.wpose.position.y += vertical_length
+        self.wpose.position.x += 0.055
+        self.wpose.position.y += 0.03
+
+        self.waypoints.append(copy.deepcopy(self.wpose))
+
+        self.publish_signal("pen_up")
+        self.execute()
+        self.publish_signal("pen_down")      
+
+        # First vertical line (top to bottom)
+        self.waypoints.clear()
+        self.wpose = self.group.get_current_pose().pose
+        self.waypoints.append(copy.deepcopy(self.wpose))
+
+        self.wpose.position.x -= vertical_length
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         self.execute()
@@ -343,7 +356,7 @@ class Writing_Control():
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         self.pen_up()
-        self.wpose.position.y = start_y + vertical_length / 3
+        self.wpose.position.x += vertical_length / 5 * 3
         self.waypoints.append(copy.deepcopy(self.wpose))
         self.pen_down()
 
@@ -356,7 +369,7 @@ class Writing_Control():
         self.wpose = self.group.get_current_pose().pose
         self.waypoints.append(copy.deepcopy(self.wpose))
 
-        self.wpose.position.x += horizontal_length
+        self.wpose.position.y -= horizontal_length
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         self.execute()
@@ -367,7 +380,9 @@ class Writing_Control():
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         self.pen_up()
-        self.wpose.position.y = start_y
+        self.wpose.position.x = start_x + vertical_length - 0.005
+        self.wpose.position.y -= 0.005
+        self.wpose.position.z += 0.004
         self.waypoints.append(copy.deepcopy(self.wpose))
         self.pen_down()
 
@@ -375,12 +390,12 @@ class Writing_Control():
         self.execute()
         self.publish_signal("pen_down")
 
-        # Second vertical line (top to bottom)
+        # # Second vertical line (top to bottom)
         self.waypoints.clear()
         self.wpose = self.group.get_current_pose().pose
         self.waypoints.append(copy.deepcopy(self.wpose))
 
-        self.wpose.position.y += vertical_length
+        self.wpose.position.x -= vertical_length * 6 / 7
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         self.execute()
@@ -602,6 +617,6 @@ if __name__ == "__main__":
     control = Writing_Control()
     control.publish_signal("clear_trajectory")
     control.writing_prepare_arm()
-    control.writing_execution('R')
+    control.writing_execution('H')
     # control.writing_test()
     

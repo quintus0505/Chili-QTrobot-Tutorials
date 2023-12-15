@@ -263,6 +263,7 @@ class Writing_Control():
         self.pen_up()
         self.wpose.position.x += vertical_length + 0.005
         self.wpose.position.y += segment_length + 0.05
+        self.wpose.position.z += 0.03
         self.waypoints.append(copy.deepcopy(self.wpose))
         self.pen_down()
 
@@ -322,8 +323,8 @@ class Writing_Control():
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         # draw tail
-        self.wpose.position.x -= tail_length + 0.005
-        self.wpose.position.y -= tail_length + 0.005
+        self.wpose.position.x -= tail_length + 0.003
+        self.wpose.position.y -= tail_length + 0.003
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         self.wpose.position.x -= tail_length / 3
@@ -652,6 +653,6 @@ if __name__ == "__main__":
     control = Writing_Control()
     control.publish_signal("clear_trajectory")
     control.writing_prepare_arm()
-    control.writing_execution('Q')
+    control.writing_execution('R')
     # control.writing_test()
     

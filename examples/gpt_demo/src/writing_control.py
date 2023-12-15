@@ -100,7 +100,7 @@ class Writing_Control():
         self.wpose = self.group.get_current_pose().pose
         self.waypoints.append(copy.deepcopy(self.wpose))
 
-        self.wpose.position.x += 0.1
+        self.wpose.position.y += 0.1
         self.waypoints.append(copy.deepcopy(self.wpose))
         
         self.execute()
@@ -182,15 +182,13 @@ class Writing_Control():
         start_x = self.group.get_current_pose().pose.position.x
         start_y = self.group.get_current_pose().pose.position.y
 
-        # First diagonal line (top left to bottom right)
         self.waypoints.clear()
         self.wpose = self.group.get_current_pose().pose
         self.waypoints.append(copy.deepcopy(self.wpose))
 
-        # Calculate the change in x and y for the diagonal line
         self.pen_up()
-        self.wpose.position.x += horizontal_length
-        self.wpose.position.y += vertical_length
+        self.wpose.position.x += vertical_length
+        self.wpose.position.y += horizontal_length
         self.waypoints.append(copy.deepcopy(self.wpose))
         self.pen_down()
 
@@ -202,19 +200,18 @@ class Writing_Control():
         self.wpose = self.group.get_current_pose().pose
         self.waypoints.append(copy.deepcopy(self.wpose))
 
-        self.wpose.position.x -= horizontal_length
-        self.wpose.position.y -= vertical_length
+        self.wpose.position.x -= vertical_length
+        self.wpose.position.y -= horizontal_length
         self.waypoints.append(copy.deepcopy(self.wpose))
         self.execute()
 
-        # Move to starting position for the second diagonal (top right corner)
         self.waypoints.clear()
         self.wpose = self.group.get_current_pose().pose
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         self.pen_up()
-        self.wpose.position.x = start_x
-        self.wpose.position.y = start_y + vertical_length + 0.02
+        self.wpose.position.x = start_x + vertical_length + 0.015
+        self.wpose.position.y = start_y
         self.waypoints.append(copy.deepcopy(self.wpose))
         self.pen_down()
 
@@ -222,13 +219,12 @@ class Writing_Control():
         self.execute()
         self.publish_signal("pen_down")
 
-        # Second diagonal line (top right to bottom left)
         self.waypoints.clear()
         self.wpose = self.group.get_current_pose().pose
         self.waypoints.append(copy.deepcopy(self.wpose))
 
-        self.wpose.position.x += horizontal_length
-        self.wpose.position.y -= vertical_length
+        self.wpose.position.x -= vertical_length - 0.005
+        self.wpose.position.y += horizontal_length + 0.005
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         self.execute()
@@ -249,18 +245,33 @@ class Writing_Control():
         self.wpose = self.group.get_current_pose().pose
         self.waypoints.append(copy.deepcopy(self.wpose))
 
-        self.wpose.position.y += vertical_length
+        self.pen_up()
+        self.wpose.position.x += vertical_length + 0.005
+        self.wpose.position.y += segment_length + 0.05
+        self.waypoints.append(copy.deepcopy(self.wpose))
+        self.pen_down()
+
+        self.publish_signal("pen_up")
+        self.execute()
+        self.publish_signal("pen_down")
+
+        # First vertical line (top to bottom)
+        self.waypoints.clear()
+        self.wpose = self.group.get_current_pose().pose
+        self.waypoints.append(copy.deepcopy(self.wpose))
+
+        self.wpose.position.x -= vertical_length
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         self.execute()
 
-        # Move to the start of curve
+        # # Move to the start of curve
         self.waypoints.clear()
         self.wpose = self.group.get_current_pose().pose
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         self.pen_up()
-        self.wpose.position.y = start_y - 0.005
+        self.wpose.position.x = start_x + vertical_length + 0.005
         self.waypoints.append(copy.deepcopy(self.wpose))
         self.pen_down()
 
@@ -275,32 +286,32 @@ class Writing_Control():
 
 
         # Middle horizontal segment (moving right)
-        self.wpose.position.x += segment_length * 2 / 3
+        self.wpose.position.y -= segment_length * 2 / 3
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         # Bottom left diagonal down segment
-        self.wpose.position.x += segment_length / 3
-        self.wpose.position.y += segment_length / 3
-        self.waypoints.append(copy.deepcopy(self.wpose))
-        self.wpose.position.y += segment_length / 3
+        self.wpose.position.y -= segment_length / 3
+        self.wpose.position.x -= segment_length / 3
         self.waypoints.append(copy.deepcopy(self.wpose))
         self.wpose.position.x -= segment_length / 3
+        self.waypoints.append(copy.deepcopy(self.wpose))
         self.wpose.position.y += segment_length / 3
+        self.wpose.position.x -= segment_length / 3
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         # Bottom horizontal segment (moving left)
-        self.wpose.position.x -= segment_length * 2 / 3
+        self.wpose.position.y += segment_length * 2 / 3 + 0.005
         self.waypoints.append(copy.deepcopy(self.wpose))
 
-        self.wpose.position.y -= 0.005
+        self.wpose.position.x += 0.005
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         # draw tail
-        self.wpose.position.x += tail_length + 0.005
-        self.wpose.position.y += tail_length + 0.005
+        self.wpose.position.x -= tail_length + 0.005
+        self.wpose.position.y -= tail_length + 0.005
         self.waypoints.append(copy.deepcopy(self.wpose))
 
-        self.wpose.position.x += tail_length / 3
+        self.wpose.position.x -= tail_length / 3
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         # Plan and execute the trajectory for 'R'
@@ -591,6 +602,6 @@ if __name__ == "__main__":
     control = Writing_Control()
     control.publish_signal("clear_trajectory")
     control.writing_prepare_arm()
-    control.writing_execution('X')
+    control.writing_execution('R')
     # control.writing_test()
     

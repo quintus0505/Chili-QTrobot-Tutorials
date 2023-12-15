@@ -145,12 +145,12 @@ class Visualize:
                     # y_pixel = self.hight/2 + int(y * 100 * 6) * 4 # Map -1.0 to 1.0 meters to 600 to 0 pixels
                     x_pixel = int(x * 100 * 6) * 4  # Map -1.0 to 1.0 meters to 0 to 800 pixels
                     y_pixel = int(y * 100 * 6) * 4  # Map -1.0 to 1.0 meters to 600 to 0 pixels
-                    x_pixel = x_pixel + self.width * 4/9
-                    y_pixel = y_pixel + self.hight * 4/9
+                    x_pixel = x_pixel + self.hight * 4/9
+                    y_pixel = y_pixel + self.width * 4/9
                     print("coordinate")
                     print(x_pixel, y_pixel, z)
                     if not self.pen_up:
-                        self.xy_positions.append((x_pixel, y_pixel))
+                        self.xy_positions.append((y_pixel, x_pixel))
                     # Clear the screen
                     self.screen.fill(WHITE)
                     # Draw the trajectory in black
@@ -159,7 +159,7 @@ class Visualize:
                             pygame.draw.line(self.screen, BLACK, self.xy_positions[i - 1], self.xy_positions[i], 8)
 
                     # Draw the current XY position in red
-                    pygame.draw.circle(self.screen, RED, (x_pixel, y_pixel), 14)
+                    pygame.draw.circle(self.screen, RED, (y_pixel, x_pixel), 14)
 
 
                     pygame.display.flip()

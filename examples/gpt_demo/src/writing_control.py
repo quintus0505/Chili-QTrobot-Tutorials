@@ -424,6 +424,21 @@ class Writing_Control():
         horizontal_edge = 0.01
         diagonal_edge = 0.02
 
+        # Move to initial position
+        self.waypoints.clear()
+        self.wpose = self.group.get_current_pose().pose
+        self.waypoints.append(copy.deepcopy(self.wpose))
+
+        self.wpose.position.x += 0.038
+        self.wpose.position.y += 0.040
+        self.wpose.position.z += 0.05
+
+        self.waypoints.append(copy.deepcopy(self.wpose))
+
+        self.publish_signal("pen_up")
+        self.execute()
+        self.publish_signal("pen_down")     
+
         # Starting position for the octagon (top left corner)
         start_x = self.group.get_current_pose().pose.position.x
         start_y = self.group.get_current_pose().pose.position.y
@@ -433,16 +448,16 @@ class Writing_Control():
         self.wpose = self.group.get_current_pose().pose
 
         # Start with the left vertical edge
-        self.wpose.position.y += vertical_edge
+        self.wpose.position.x -= vertical_edge
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         # bottom left diagonal
-        self.wpose.position.x += diagonal_edge / 2
-        self.wpose.position.y += diagonal_edge / 2
+        self.wpose.position.x -= diagonal_edge / 2
+        self.wpose.position.y -= diagonal_edge / 2
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         # bottom horizontal edge
-        self.wpose.position.x += horizontal_edge
+        self.wpose.position.y -= horizontal_edge
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         # bottom right diagonal
@@ -451,16 +466,16 @@ class Writing_Control():
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         # Right vertical edge
-        self.wpose.position.y -= vertical_edge
+        self.wpose.position.x += vertical_edge
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         # top right diagonal
-        self.wpose.position.x -= diagonal_edge / 2
-        self.wpose.position.y -= diagonal_edge / 2
+        self.wpose.position.x += diagonal_edge / 2
+        self.wpose.position.y += diagonal_edge / 2
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         # top horizontal edge
-        self.wpose.position.x -= horizontal_edge
+        self.wpose.position.y += horizontal_edge
         self.waypoints.append(copy.deepcopy(self.wpose))
 
         # top left diagonal
@@ -476,8 +491,8 @@ class Writing_Control():
         self.wpose = self.group.get_current_pose().pose
 
         # Tail starting point (bottom right of the octagon)
-        self.wpose.position.x = start_x + horizontal_edge + diagonal_edge / 2
-        self.wpose.position.y = start_y + vertical_edge
+        self.wpose.position.y = start_y - horizontal_edge - diagonal_edge / 2
+        self.wpose.position.x = start_x - vertical_edge
 
         self.pen_up()
         self.waypoints.append(copy.deepcopy(self.wpose))
@@ -489,11 +504,13 @@ class Writing_Control():
 
         # Tail end point
         tail_length = 0.03
-        self.wpose.position.x += tail_length / 2
-        self.wpose.position.y += tail_length / 2
+        self.wpose.position.x -= tail_length / 2
+        self.wpose.position.y -= tail_length / 2
 
         self.waypoints.append(copy.deepcopy(self.wpose))
 
+        self.wpose.position.y -= tail_length / 2
+        self.waypoints.append(copy.deepcopy(self.wpose))
         # Plan and execute the tail trajectory
         self.execute()
 
@@ -635,6 +652,6 @@ if __name__ == "__main__":
     control = Writing_Control()
     control.publish_signal("clear_trajectory")
     control.writing_prepare_arm()
-    control.writing_execution('F')
+    control.writing_execution('Q')
     # control.writing_test()
     

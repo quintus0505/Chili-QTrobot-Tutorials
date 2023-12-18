@@ -25,15 +25,15 @@ import sys
 from logger import Logger
 
 TEST_WRITING = False  # Flag to just test the writing part, no interaction with the child
-TEST_CONVERSATION = False  # Flag to just test the conversation part, skip the writing part
+TEST_CONVERSATION = True  # Flag to just test the conversation part, skip the writing part
 # Available_Letter = ['F', 'X', 'H', 'Q', 'S', 'R']
-Available_Letter = ['X', 'F', 'H', 'Q', 'R']
+Available_Letter = ['X', 'F', 'Q', 'R']
 TEST_LETTER = "R"  # Used for TEST_WRITING
 WRITTING_REPEAT_TIMES = 1   # Repeat times for writing the same letter
 CONVERSATION_TIME = 60     # set the conversation time
-ADDITIONAL_WRITING_TIME = 90  # set the additional writing time
+ADDITIONAL_WRITING_TIME = 180  # set the additional writing time
 
-User_name = 'Alexander'
+User_name = 'Lucas'
 
 class Greeting(smach.State):
     def __init__(self):
@@ -100,8 +100,8 @@ class Conversation(smach.State):
         userdata.logger.log_state_time("Conversation", conversation_start_time)
         writing_start_flag = False
         if not TEST_WRITING:
-            # while not rospy.is_shutdown() and not userdata.GPTBot.finish:   
-            while not rospy.is_shutdown():     
+            while not rospy.is_shutdown() and not userdata.GPTBot.finish:   
+            # while not rospy.is_shutdown():     
                 print('listenting...') 
                 try:
                     recognize_result = userdata.GPTBot.recognizeQuestion(language=userdata.GPTBot.defaultlanguage, options='', timeout=0)
@@ -138,10 +138,10 @@ class Conversation(smach.State):
                 userdata.GPTBot.no_guesture_speak(refined_response)
 
             # userdata.GPTBot.no_guesture_start()
-            # if userdata.GPTBot.finish and userdata.GPTBot.start_writing:
-            #     return 'writing_loop'
-                if writing_start_flag:
-                    return 'writing_loop'
+            if userdata.GPTBot.finish and userdata.GPTBot.start_writing:
+                return 'writing_loop'
+                # if writing_start_flag:
+                #     return 'writing_loop'
             # elif userdata.GPTBot.finish:
             #     return 'goodbye'
         else:
@@ -195,12 +195,12 @@ class AdditionalWritingStart(smach.State):
         if not TEST_WRITING:
             if not userdata.writting_loop_end:
                 prompt = "Now you have taught the child how to write letters in" + str(Available_Letter) + \
-                " However, the childern need for review and consolidation. You should first conclude what you taught and the reason for teaching again started with 'Now we' then ask which letter the child want to learn again by saying 'Which letter'"
+                " However, the child need for review and consolidation. You should first conclude what you taught and the reason for teaching again started with 'Now we' then ask which letter the child want to learn again by saying 'Which letter'"
                 response =  userdata.GPTBot.aimodel.generate(prompt)
                 userdata.writting_loop_end = True
             else:
                 prompt = "Now you have taught the child how to write letters in" + str(Available_Letter) + \
-                "You should ask the  'Which letter'"
+                "You should ask the child which letter he/she would like to learn again. Remember to remind the child of available letter in " + str(Available_Letter) +" again. You should start with 'Which letter'"
                 response =  userdata.GPTBot.aimodel.generate(prompt)
             userdata.additional_writing_start_time = time.time()
             print("response: ", response)
@@ -372,7 +372,7 @@ class AdditionalWritingEnd(smach.State):
                     prompt = recognize_result.transcript
                     words = word_tokenize(prompt.lower())
 
-                    closing_words = ["bye","goodbye","stop", 'end']
+                    closing_words = ["bye","goodbye","stop"]
                     continue_words = ["continue", "another", "more", "next", "other"]
                     if any(word in closing_words for word in words):
                         return 'goodbye'

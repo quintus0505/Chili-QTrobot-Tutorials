@@ -18,6 +18,8 @@ class Logger:
         
         self.state_log_data = []
         self.conversation_log_data = []
+        self.human_count = 0
+        self.robot_count = 0
 
     def _create_dir(self, path):
         if not os.path.exists(path):
@@ -28,6 +30,10 @@ class Logger:
 
     def log_conversation(self, timestamp, speaker, content):
         self.conversation_log_data.append({"timestamp": timestamp, "speaker": speaker, "content": content})
+        if speaker == "Human":
+            self.human_count += 1
+        elif speaker == "QTrobot":
+            self.robot_count += 1
 
     def save_state_time_to_csv(self):
         self._save_to_csv(self.state_filename, self.state_log_data, ["start_time", "state"])
@@ -41,6 +47,8 @@ class Logger:
             writer.writeheader()
             for entry in data:
                 writer.writerow(entry)
+
+        print("Human: {}, QTrobot: {}".format(self.human_count, self.robot_count))
 
 
 if __name__ == "__main__":

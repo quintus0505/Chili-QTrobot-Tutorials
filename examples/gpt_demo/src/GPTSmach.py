@@ -25,7 +25,7 @@ import sys
 from logger import Logger
 
 TEST_WRITING = False  # Flag to just test the writing part, no interaction with the child
-TEST_CONVERSATION = True  # Flag to just test the conversation part, skip the writing part
+TEST_CONVERSATION = False  # Flag to just test the conversation part, skip the writing part
 # Available_Letter = ['F', 'X', 'H', 'Q', 'S', 'R']
 Available_Letter = ['X', 'F', 'Q', 'R']
 TEST_LETTER = "R"  # Used for TEST_WRITING
@@ -33,7 +33,7 @@ WRITTING_REPEAT_TIMES = 1   # Repeat times for writing the same letter
 CONVERSATION_TIME = 60     # set the conversation time
 ADDITIONAL_WRITING_TIME = 180  # set the additional writing time
 
-User_name = 'Lucas'
+User_name = 'Alex'
 
 class Greeting(smach.State):
     def __init__(self):
@@ -373,7 +373,7 @@ class AdditionalWritingEnd(smach.State):
                     words = word_tokenize(prompt.lower())
 
                     closing_words = ["bye","goodbye","stop"]
-                    continue_words = ["continue", "another", "more", "next", "other"]
+                    continue_words = ["continue", "another", "more", "next", "other", 'No', 'no']
                     if any(word in closing_words for word in words):
                         return 'goodbye'
                     elif any(word in continue_words for word in words) or any(word in Available_Letter for word in words) or any(word in [letter.lower() for letter in Available_Letter] for word in words):

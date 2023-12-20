@@ -1,5 +1,5 @@
 # Tutorials
-This repository contains a set of code samples and tutorial for programming [QTrobot by LuxAI S.A.](http://luxai.com/qtrobot-for-research/#hardware)
+This repository contains a set of code samples and tutorial for programming [QTrobot by LuxAI S.A.](http://luxai.com/qtrobot-for-research/#hardware). This repo is developed by yujun based on the official tutorial repo of [github](https://github.com/luxai-qtrobot) for creating QTCowriter, a conversational robot that can teach children handwriting 
 
 ![QTrobot](doc/qtrobot.png)
 

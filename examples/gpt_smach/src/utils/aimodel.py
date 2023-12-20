@@ -1,13 +1,19 @@
 import openai
 import rospy
+from utils.tools import load_csv_file, save_csv_file
+import time
 
-class Davinci3:
-    def __init__(self):
+class Davinci3():
+    def __init__(self, log_data=False):
         openai.api_key = rospy.get_param("/gpt_demo/chatengine/OPENAI_KEY", None)
         self.messages = []
-        self.max_token_length_input = rospy.get_param("/gpt_demo/davinci3/max_token_length_input", 2048)
-        self.max_token_length_total = rospy.get_param("/gpt_demo/davinci3/max_token_length_total", 4096)
+        self.log_data = log_data
+        self.max_token_length_input = rospy.get_param("/gpt_demo/davinci3/max_token_length_input", 4096*4)
+        self.max_token_length_total = rospy.get_param("/gpt_demo/davinci3/max_token_length_total", 8192*4)
         self.prompt = rospy.get_param("/gpt_demo/davinci3/prompt", "")
+        if log_data:
+            self.openai_data_file = "davinci3_openai_data.csv"
+            self.openai_data = load_csv_file(self.openai_data_file)
 
     def generate(self, message):
         
@@ -29,20 +35,25 @@ class Davinci3:
         prompt_message = self.prompt + history_input + message_input
         for i in range(1,10):
             try:
+                start_time = time.time()
                 response = openai.Completion.create(
                     model="text-davinci-003",
                     prompt=prompt_message,
                     temperature=rospy.get_param("/gpt_demo/davinci3/temperature", 0.8),
-                    max_tokens=rospy.get_param("/gpt_demo/davinci3/max_tokens", 60),
+                    max_tokens=rospy.get_param("/gpt_demo/davinci3/max_tokens", 80),
                     best_of=rospy.get_param("/gpt_demo/davinci3/best_of", 1),
                     n=rospy.get_param("/gpt_demo/davinci3/n", 1),
                     stop=rospy.get_param("/gpt_demo/davinci3/stop", ["Human:"]),
                     frequency_penalty=rospy.get_param("/gpt_demo/davinci3/frequency_penalty", 0.6),
                     presence_penalty=rospy.get_param("/gpt_demo/davinci3/presence_penalty", 0.6))
+                api_time = time.time() - start_time
+                print("api time: ", api_time)
                 text = response['choices'][0]['text'].replace(
                     '\n', '').replace(' .', '.').strip()
                 self.messages.append(message_input)
                 self.messages.append("\n"+text)
+                if self.log_data:
+                    self.openai_data.append((api_time, len(prompt_message)))
                 return text.replace('QTrobot:','').strip()
             except Exception as e:
                 print(e)
@@ -50,14 +61,18 @@ class Davinci3:
         return None
 
 
-class ChatGPT:
-    def __init__(self):
+class ChatGPT():
+    def __init__(self, log_data=False):
         openai.api_key = rospy.get_param("/gpt_demo/chatengine/OPENAI_KEY", None)
         self.messages = []
+        self.log_data = log_data
         self.memory_size = rospy.get_param("/gpt_demo/chatgpt/memory_size", 5)
         self.max_token_length = rospy.get_param("/gpt_demo/chatgpt/max_token_length", 4096)
         self.character = rospy.get_param("/gpt_demo/chatgpt/character", "qtrobot")
         self.use_prompt = rospy.get_param("/gpt_demo/chatgpt/use_prompt", False)
+        if log_data:
+            self.openai_data_file = "chatgpt_openai_data.csv"
+            self.openai_data = load_csv_file(self.openai_data_file)
         if self.use_prompt:
             self.system_message = rospy.get_param("/gpt_demo/chatgpt/prompt", "")
         else:
@@ -115,15 +130,21 @@ class ChatGPT:
     def generate(self, message):     
         for i in range(1,10):
             try:
+                input_message = self.create_prompt(message)
+                start_time = time.time()
                 response = openai.ChatCompletion.create(
                     model="gpt-3.5-turbo",
-                    messages=self.create_prompt(message),
+                    messages=input_message,
                     temperature=rospy.get_param("/gpt_demo/chatgpt/temperature", 0.8),
                     max_tokens=rospy.get_param("/gpt_demo/chatgpt/max_tokens", 80),
                     frequency_penalty=rospy.get_param("/gpt_demo/chatgpt/frequency_penalty", 0.6),
                     presence_penalty=rospy.get_param("/gpt_demo/chatgpt/presence_penalty", 0.6))
+                api_time = time.time() - start_time
+                print("api time: ", api_time)
                 text = response['choices'][0]['message']
                 self.messages.append({"role": "assistant", "content": text.content})
+                if self.log_data:
+                    self.openai_data.append((api_time, len(input_message)))
                 return text.content
             except Exception as e:
                 print(e)
@@ -131,16 +152,20 @@ class ChatGPT:
         return None
     
 
-class FastChat:
-    def __init__(self):
+class FastChat():
+    def __init__(self, log_data=False):
         openai.api_key = 'EMPTY'
         openai.api_base = rospy.get_param("/gpt_demo/fastchat/api_base", 'http://localhost:6000/v1')
         self.messages = []
+        self.log_data = log_data
         self.model = rospy.get_param("/gpt_demo/fastchat/model", 'vicuna-7b-v1.3')
         self.memory_size = rospy.get_param("/gpt_demo/fastchat/memory_size", 5)
         self.max_token_length = rospy.get_param("/gpt_demo/fastchat/max_token_length", 4096)
         self.character = rospy.get_param("/gpt_demo/fastchat/character", "qtrobot")        
         self.system_message = rospy.get_param("/gpt_demo/fastchat/prompt", "")
+        if log_data:
+            self.openai_data_file = "fastchat_openai_data.csv"
+            self.openai_data = load_csv_file(self.openai_data_file)    
         
     def create_prompt(self, message):
          # cut off long input
@@ -160,15 +185,20 @@ class FastChat:
     def generate(self, message):     
         for i in range(1,10):
             try:
+                input_message = self.create_prompt(message)
+                start_time = time.time()
                 response = openai.ChatCompletion.create(
                     model=self.model,
-                    messages=self.create_prompt(message),
+                    messages=input_message,
                     temperature=rospy.get_param("/gpt_demo/fastchat/temperature", 0.8),
                     max_tokens=rospy.get_param("/gpt_demo/fastchat/max_tokens", 41),
                     frequency_penalty=rospy.get_param("/gpt_demo/fastchat/frequency_penalty", 0.6),
                     presence_penalty=rospy.get_param("/gpt_demo/fastchat/presence_penalty", 0.6))
+                api_time = time.time() - start_time
                 text = response['choices'][0]['message']
                 self.messages.append({"role": "assistant", "content": text.content})
+                if self.log_data:
+                    self.openai_data.append((api_time, len(input_message)))
                 return text.content
             except Exception as e:
                 print(e)

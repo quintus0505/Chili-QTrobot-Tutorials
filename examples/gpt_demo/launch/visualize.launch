@@ -1,3 +1,0 @@
-<launch>
-  <node name="visualize" pkg="gpt_demo" type="visualize.py" output="screen"></node>
-</launch>

@@ -618,13 +618,13 @@ class Writing_Control():
         self.group.execute(self.plan, True)
     def writing_execution(self, letter='H'):
 
+        # Publish a signal on the topic
+        self.publish_signal("start")
         # generate waypoints
         waypoints = []
         wpose = self.group.get_current_pose().pose
         waypoints.append(copy.deepcopy(wpose))
-
-        # Publish a signal on the topic
-        self.publish_signal("start")
+        
         print('letter: ', letter)
         if letter == 'F':
             self.write_letter_F()
